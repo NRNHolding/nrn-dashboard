@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NRN — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+ --green:#233a2c;--green2:#2f4d3a;--green3:#3f6b4a;--green4:#2d6a4f;--green-bg:#e6f1ea;
+ --gold:#c8a96e;--gold2:#e8c98e;--gold-bg:#f5ecd8;
+ --cream:#f6f2ea;--cream2:#ece5d8;--cream3:#e0d8c8;--white:#fff;
+ --red:#9b2226;--red-bg:#f7e3e3;--amber:#7f5000;--amber-bg:#fff0cc;
+ --text:#241c12;--text2:#4f4534;--text3:#8a8170;
+ --radius:13px;--shadow:0 4px 22px rgba(35,40,30,.10);
+}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5}
+.num{font-family:'DM Mono',monospace;font-variant-numeric:tabular-nums}
+.header{background:var(--green);padding:18px 30px 0;position:relative;overflow:hidden}
+.header::before{content:'';position:absolute;top:-70px;right:-30px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(200,169,110,.18),transparent 70%)}
+.header-in{max-width:1240px;margin:0 auto;position:relative}
+.htop{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.eyebrow{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-bottom:4px}
+.header h1{font-family:'DM Serif Display',serif;font-size:23px;color:#fff;line-height:1.1}
+.header h1 em{color:var(--gold2);font-style:normal}
+.spacer{flex:1}
+.btn{height:34px;padding:0 14px;border:none;border-radius:9px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.btn-gold{background:var(--gold);color:#3a2a10}.btn-gold:hover{background:var(--gold2)}
+/* tabs */
+.tabs{display:flex;gap:4px;margin-top:14px;flex-wrap:wrap}
+.tab{background:transparent;border:0;color:rgba(255,255,255,.6);padding:11px 18px;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:600;border-radius:10px 10px 0 0;border-bottom:3px solid transparent}
+.tab:hover{color:#fff}
+.tab.on{background:var(--cream);color:var(--green);border-bottom-color:var(--gold)}
+.wrap{max-width:1240px;margin:0 auto;padding:22px 20px 70px}
+.section-title{font-family:'DM Serif Display',serif;font-size:18px;color:var(--green);font-weight:400;margin:20px 0 11px}
+/* brand cards (agenda) */
+.brandgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}
+@media(max-width:900px){.brandgrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.brandgrid{grid-template-columns:1fr}}
+.bcard{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:15px 17px;border-top:3px solid var(--gold)}
+.bcard h3{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--green4);font-weight:500;margin-bottom:8px}
+.bcard .big{font-family:'DM Serif Display',serif;font-size:29px;color:var(--green);line-height:1}
+.bcard .biglbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.statrow{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+.chip.done{background:var(--green-bg);color:var(--green4)}.chip.prog{background:var(--gold-bg);color:var(--amber)}
+.chip.plan{background:var(--cream2);color:var(--text2)}.chip.month{background:var(--green);color:#fff}
+/* toolbar */
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:11px}
+.toolbar select{height:36px;padding:0 11px;border-radius:9px;border:1.5px solid var(--cream2);background:var(--cream);color:var(--text);font-size:13px;font-family:inherit}
+.toolbar select:focus{outline:none;border-color:var(--green4);background:#fff}
+.toolbar .lbl{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)}
+.tag{font-size:11px;color:var(--text3)}
+/* tables */
+.tablewrap{overflow:auto;border:1px solid var(--cream2);border-radius:var(--radius);background:var(--white);box-shadow:var(--shadow);margin-bottom:8px}
+table{width:100%;border-collapse:collapse;font-size:12.8px}
+thead th{text-align:left;color:var(--text3);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.05em;font-family:'DM Mono',monospace;padding:11px 12px;border-bottom:1.5px solid var(--cream2);white-space:nowrap;background:var(--cream)}
+tbody td{padding:10px 12px;border-bottom:1px solid var(--cream2);white-space:nowrap}
+tbody tr:hover{background:var(--cream)}
+td.r,th.r{text-align:right}
+.pill{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:999px;display:inline-block}
+.pill.done{background:var(--green-bg);color:var(--green4)}.pill.prog{background:var(--gold-bg);color:var(--amber)}
+.pill.plan{background:var(--cream2);color:var(--text2)}
+.pill.deal{background:var(--green-bg);color:var(--green4)}.pill.wait{background:var(--gold-bg);color:var(--amber)}
+.pill.cancel{background:var(--red-bg);color:var(--red)}
+.dl{font-family:'DM Mono',monospace;font-weight:600}
+.dl.red{color:var(--red)}.dl.amber{color:var(--amber)}.dl.green{color:var(--green4)}
+.muted{color:var(--text3)}
+/* generic grid banner */
+.gbanner{background:var(--green);color:#fff;font-family:'DM Serif Display',serif;font-size:15px;padding:11px 14px;border-radius:10px;margin:16px 0 9px}
+.gsub{background:var(--green-bg);color:var(--green);font-weight:700;padding:9px 14px;border-radius:9px;margin:12px 0 8px;font-size:13px}
+.loading{text-align:center;padding:50px;color:var(--text3)}
+.spin{display:inline-block;animation:spin 1s linear infinite;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* login */
+#gate{position:fixed;inset:0;background:linear-gradient(160deg,var(--green),var(--green2));display:grid;place-items:center;z-index:100;padding:20px}
+.gatecard{background:var(--white);border-radius:16px;box-shadow:0 20px 55px rgba(0,0,0,.3);padding:30px 32px;width:min(400px,94vw)}
+.gatecard .eb{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-bottom:5px}
+.gatecard h2{font-family:'DM Serif Display',serif;font-size:23px;color:var(--green);font-weight:400;margin-bottom:3px}
+.gatecard p{color:var(--text3);font-size:12.5px;margin-bottom:18px}
+.gatecard input{width:100%;height:44px;padding:0 13px;border:1.5px solid var(--cream2);border-radius:10px;background:var(--cream);font-size:14px;font-family:inherit;color:var(--text);outline:none;margin-bottom:12px}
+.gatecard input:focus{border-color:var(--green4);background:#fff}
+.gatecard button{width:100%;height:44px;border:none;border-radius:10px;background:var(--gold);color:#3a2a10;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.gatecard button:hover{background:var(--gold2)}
+.gateErr{background:var(--red-bg);color:var(--red);border-radius:9px;padding:9px 12px;font-size:12.5px;margin-bottom:12px;display:none}
+.gateErr.show{display:block}
+</style>
+</head>
+<body>
+
+<!-- LOGIN GATE (BOD) -->
+<div id="gate">
+  <div class="gatecard">
+    <div class="eb">NRN Holding · Board of Directors</div>
+    <h2>NRN Dashboard</h2>
+    <p>Akses khusus BOD. Masukkan password.</p>
+    <div class="gateErr" id="gateErr"></div>
+    <input type="password" id="gatePw" placeholder="Password BOD" />
+    <button id="gateBtn">Masuk →</button>
+  </div>
+</div>
+
+<div class="header">
+  <div class="header-in">
+    <div class="htop">
+      <div>
+        <div class="eyebrow">NRN Holding · Live from Google Sheets</div>
+        <h1>NRN <em>Dashboard</em></h1>
+      </div>
+      <div class="spacer"></div>
+      <span class="tag" id="subInfo" style="color:rgba(255,255,255,.5)"></span>
+      <button class="btn btn-gold" id="refreshBtn">↻ Refresh</button>
+    </div>
+    <div class="tabs" id="tabs"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div id="content"><div class="loading"><span class="spin">⏳</span> Memuat…</div></div>
+</div>
+
+<script>
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyxK1M5xtaXSUO2_J5wbVPsc5QYsEIuIxrFCpFttce-KvSuTV7rkb9NSRxye5cIS2QX/exec';
+const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+const TABS = [
+  { id:'agenda',    label:'📌 Accomplishment', type:'agenda' },
+  { id:'inquiry',   label:'📋 Inquiry',        type:'inquiry' },
+  { id:'finance',   label:'💰 Finance',        type:'finance' },
+  { id:'marketing', label:'📊 Marketing',      type:'marketing' },
+];
+const BR = ['Revolt Industry','Radja Leather','Rove Gifts','Winddam ID'];
+
+let active = 'agenda';
+let agendaFilt = { brand:'(Semua)', bulan:'(Semua)', status:'(Semua)' };
+let agendaData = null;
+let inqFilt = { brand:'(Semua)', status:'(Semua)' };
+let inqData = null;
+let finFilt = { brand:'(Semua)', from:'(Semua)', to:'(Semua)' };
+let finData = null;
+let mktFilt = { brand:'Revolt Industry', month:'(Semua)' };
+let mktData = null;
+const cache = {};
+const fmtRp = n => 'Rp ' + (Number(n)||0).toLocaleString('id-ID');
+const fmtNum = n => (Number(n)||0).toLocaleString('id-ID');
+const $ = s => document.querySelector(s);
+
+let BOD_PW = '';
+const PW = () => '&password=' + encodeURIComponent(BOD_PW);
+
+function renderTabs(){
+  $('#tabs').innerHTML = TABS.map(t =>
+    `<button class="tab ${t.id===active?'on':''}" data-tab="${t.id}">${t.label}</button>`).join('');
+  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { active = b.dataset.tab; load(); });
+}
+
+async function load(force){
+  renderTabs();
+  const tab = TABS.find(t => t.id===active);
+  $('#content').innerHTML = '<div class="loading"><span class="spin">⏳</span> Memuat…</div>';
+  try{
+    if(tab.type==='agenda'){
+      if(force || !agendaData){ const r = await fetch(APPS_SCRIPT_URL+'?action=getAgenda'+PW()); agendaData = await r.json(); }
+      if(!agendaData.success) throw new Error(agendaData.error);
+      $('#subInfo').textContent = 'Bulan ini: '+agendaData.bulanIni;
+      renderAgenda();
+    } else if(tab.type==='inquiry'){
+      if(force || !inqData){ const r = await fetch(APPS_SCRIPT_URL+'?action=getInquiryAll'+PW()); inqData = await r.json(); }
+      if(!inqData.success) throw new Error(inqData.error);
+      $('#subInfo').textContent = inqData.detail.length+' inquiry';
+      renderInquiry();
+    } else if(tab.type==='finance'){
+      if(force || !finData){ const r = await fetch(APPS_SCRIPT_URL+'?action=getFinanceAll'+PW()); finData = await r.json(); }
+      if(!finData.success) throw new Error(finData.error);
+      $('#subInfo').textContent = 'Tahun '+finData.year;
+      renderFinance();
+    } else if(tab.type==='marketing'){
+      if(force || !mktData){ const r = await fetch(APPS_SCRIPT_URL+'?action=getMarketingAll'+PW()); mktData = await r.json(); }
+      if(!mktData.success) throw new Error(mktData.error);
+      $('#subInfo').textContent = mktData.rows.length+' laporan';
+      renderMarketing();
+    } else {
+      if(force) delete cache[tab.sheet];
+      if(!cache[tab.sheet]){ const r = await fetch(APPS_SCRIPT_URL+'?action=getSheet&name='+encodeURIComponent(tab.sheet)+PW()); cache[tab.sheet] = await r.json(); }
+      const d = cache[tab.sheet];
+      if(!d.success) throw new Error(d.error);
+      $('#subInfo').textContent = '';
+      renderGrid(d.values);
+    }
+  }catch(e){
+    $('#content').innerHTML = '<div class="loading">⚠️ Gagal memuat.<br><small>'+(e.message||e)+'</small><br><small>Pastikan Web App sudah di-deploy ulang.</small></div>';
+  }
+}
+
+/* ===== AGENDA (rich) ===== */
+function statusPill(st){
+  if(st==='Done') return '<span class="pill done">Done</span>';
+  if(st==='On Progress') return '<span class="pill prog">On Progress</span>';
+  return '<span class="pill plan">Planned</span>';
+}
+function sisaCls(n){ if(n===null) return ''; if(n<=3) return 'red'; if(n<=7) return 'amber'; return 'green'; }
+
+function renderAgenda(){
+  const D = agendaData, f = agendaFilt;
+  const cards = D.summary.map(b => `
+    <div class="bcard"><h3>${b.brand}</h3>
+      <div class="big">${b.total}</div><div class="biglbl">Total Agenda</div>
+      <div class="statrow">
+        <span class="chip month">📅 ${b.bulanIni}</span>
+        <span class="chip done">✓ ${b.done}</span>
+        <span class="chip prog">◐ ${b.onProgress}</span>
+        <span class="chip plan">○ ${b.planned}</span>
+      </div></div>`).join('');
+  const brandOpts = ['(Semua)'].concat(D.summary.map(b=>b.brand));
+  const bulanSet = ['(Semua)'].concat([...new Set(D.detail.map(d=>d.bulan).filter(Boolean))].sort((a,b)=>MONTHS.indexOf(a)-MONTHS.indexOf(b)));
+  const statusOpts = ['(Semua)','Planned','On Progress','Done'];
+  const opt=(arr,sel)=>arr.map(v=>`<option ${v===sel?'selected':''}>${v}</option>`).join('');
+  const rows = D.detail.filter(d =>
+    (f.brand==='(Semua)'||d.brand===f.brand)&&(f.bulan==='(Semua)'||d.bulan===f.bulan)&&(f.status==='(Semua)'||d.status===f.status));
+  const tb = rows.length ? rows.map(d=>`
+    <tr><td><b>${d.brand}</b></td><td>${d.card||'—'}</td><td>${d.subtask||'—'}</td><td>${d.bulan||'—'}</td>
+    <td class="dl">${d.deadline||'—'}</td><td class="dl ${sisaCls(d.sisaHari)}">${d.sisaHari===null?'—':d.sisaHari+' hari'}</td>
+    <td>${statusPill(d.status)}</td><td class="muted">${d.pic||'—'}</td></tr>`).join('')
+    : '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Tidak ada data.</td></tr>';
+  $('#content').innerHTML = `
+    <div class="section-title">📊 Summary Pencapaian</div>
+    <div class="brandgrid">${cards}</div>
+    <div class="section-title">📑 Checklist &amp; Deadline</div>
+    <div class="toolbar">
+      <span class="lbl">Brand</span><select id="fBrand">${opt(brandOpts,f.brand)}</select>
+      <span class="lbl">Bulan</span><select id="fBulan">${opt(bulanSet,f.bulan)}</select>
+      <span class="lbl">Status</span><select id="fStatus">${opt(statusOpts,f.status)}</select>
+      <span class="tag">${rows.length} / ${D.detail.length} milestone</span>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Brand</th><th>Card / Agenda</th><th>Subtask</th><th>Bulan</th><th>Deadline</th><th>Sisa Hari</th><th>Status</th><th>PIC</th></tr></thead>
+      <tbody>${tb}</tbody></table></div>`;
+  $('#fBrand').onchange=e=>{f.brand=e.target.value;renderAgenda();};
+  $('#fBulan').onchange=e=>{f.bulan=e.target.value;renderAgenda();};
+  $('#fStatus').onchange=e=>{f.status=e.target.value;renderAgenda();};
+}
+
+/* ===== INQUIRY (rich, filter client-side) ===== */
+function inqPill(st){
+  const z=String(st).toLowerCase();
+  if(z.includes('deal')) return '<span class="pill deal">✅ Deal</span>';
+  if(z.includes('cancel')) return '<span class="pill cancel">❌ Cancel</span>';
+  return '<span class="pill wait">⏳ Wait</span>';
+}
+function renderInquiry(){
+  const D = inqData.detail, f = inqFilt;
+  const BR = ['Revolt Industry','Radja Leather','Rove Gifts','Winddam ID'];
+  // summary per brand
+  const cards = BR.map(b=>{
+    const rows = D.filter(d=>d.brand===b);
+    const deal = rows.filter(d=>/deal/i.test(d.status));
+    const wait = rows.filter(d=>/wait/i.test(d.status));
+    const cancel = rows.filter(d=>/cancel/i.test(d.status));
+    const nom = deal.reduce((s,d)=>s+d.nominal,0);
+    return `<div class="bcard"><h3>${b}</h3>
+      <div class="big">${rows.length}</div><div class="biglbl">Total Inquiry</div>
+      <div class="statrow">
+        <span class="chip done">✅ ${deal.length}</span>
+        <span class="chip prog">⏳ ${wait.length}</span>
+        <span class="chip plan">❌ ${cancel.length}</span>
+      </div>
+      <div style="margin-top:9px;font-family:'DM Mono',monospace;font-size:12px;color:var(--green4);font-weight:600">${fmtRp(nom)}<span style="color:var(--text3);font-weight:400"> deal</span></div>
+    </div>`;
+  }).join('');
+  const brandOpts=['(Semua)'].concat(BR);
+  const statusOpts=['(Semua)','✅ Deal','⏳ Wait for Confirmation','❌ Cancel'];
+  const opt=(arr,sel)=>arr.map(v=>`<option ${v===sel?'selected':''}>${v}</option>`).join('');
+  const rows = D.filter(d=>
+    (f.brand==='(Semua)'||d.brand===f.brand)&&
+    (f.status==='(Semua)'|| (f.status.includes('Deal')&&/deal/i.test(d.status)) || (f.status.includes('Wait')&&/wait/i.test(d.status)) || (f.status.includes('Cancel')&&/cancel/i.test(d.status))));
+  const tb = rows.length ? rows.map(d=>`
+    <tr><td>${d.timestamp||'—'}</td><td><b>${d.brand}</b></td><td>${d.customer||'—'}</td><td>${d.product||'—'}</td>
+    <td class="r num">${fmtRp(d.nominal)}</td><td>${d.contactVia||'—'}</td><td>${inqPill(d.status)}</td><td class="muted">${d.salesPic||'—'}</td></tr>`).join('')
+    : '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Tidak ada data.</td></tr>';
+  $('#content').innerHTML = `
+    <div class="section-title">📊 Summary Inquiry</div>
+    <div class="brandgrid">${cards}</div>
+    <div class="section-title">📑 Detail Inquiry</div>
+    <div class="toolbar">
+      <span class="lbl">Brand</span><select id="iBrand">${opt(brandOpts,f.brand)}</select>
+      <span class="lbl">Status</span><select id="iStatus">${opt(statusOpts,f.status)}</select>
+      <span class="tag">${rows.length} / ${D.length} inquiry</span>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Tanggal</th><th>Brand</th><th>Customer</th><th>Produk</th><th class="r">Est. Nominal</th><th>Via</th><th>Status</th><th>PIC</th></tr></thead>
+      <tbody>${tb}</tbody></table></div>`;
+  $('#iBrand').onchange=e=>{f.brand=e.target.value;renderInquiry();};
+  $('#iStatus').onchange=e=>{f.status=e.target.value;renderInquiry();};
+}
+
+/* ===== FINANCE (rich, filter brand + range bulan) ===== */
+function renderFinance(){
+  const rows = finData.rows, f = finFilt;
+  const fromIdx = f.from==='(Semua)' ? 0 : MONTHS.indexOf(f.from);
+  const toIdx   = f.to==='(Semua)'   ? 11 : MONTHS.indexOf(f.to);
+  const flt = rows.filter(r =>
+    (f.brand==='(Semua)'||r.brand===f.brand) &&
+    (MONTHS.indexOf(r.month)>=fromIdx && MONTHS.indexOf(r.month)<=toIdx));
+
+  const sum = (arr,k)=>arr.reduce((s,x)=>s+(x[k]||0),0);
+  const est=sum(flt,'est'), act=sum(flt,'act'), vari=act-est;
+  const task=sum(flt,'taskCount'), done=sum(flt,'doneCount'), ovd=sum(flt,'overdueCount');
+
+  const opt=(arr,sel)=>arr.map(v=>`<option ${v===sel?'selected':''}>${v}</option>`).join('');
+  const brandOpts=['(Semua)'].concat(BR), monthOpts=['(Semua)'].concat(MONTHS);
+
+  // KPI cards
+  const cards = `
+    <div class="bcard"><h3>Budget Estimasi</h3><div class="big" style="font-size:22px">${fmtRp(est)}</div></div>
+    <div class="bcard"><h3>Budget Aktual</h3><div class="big" style="font-size:22px">${fmtRp(act)}</div></div>
+    <div class="bcard"><h3>Variance</h3><div class="big" style="font-size:22px;color:${vari<=0?'var(--green4)':'var(--red)'}">${fmtRp(vari)}</div></div>
+    <div class="bcard"><h3>Task / Selesai / Overdue</h3><div class="statrow" style="margin-top:6px">
+      <span class="chip plan">${task} task</span><span class="chip done">✓ ${done}</span><span class="chip cancel" style="background:var(--red-bg);color:var(--red)">⚠ ${ovd}</span></div></div>`;
+
+  // Per brand table
+  const brandsToShow = f.brand==='(Semua)' ? BR : [f.brand];
+  const bRows = brandsToShow.map(b=>{
+    const br = flt.filter(r=>r.brand===b);
+    const e=sum(br,'est'), a=sum(br,'act'), v=a-e;
+    return `<tr><td><b>${b}</b></td><td class="r num">${fmtRp(e)}</td><td class="r num">${fmtRp(a)}</td>
+      <td class="r num" style="color:${v<=0?'var(--green4)':'var(--red)'}">${fmtRp(v)}</td>
+      <td class="r num">${sum(br,'contentOutput')}</td><td class="r num">${sum(br,'taskCount')}</td>
+      <td class="r num" style="color:${sum(br,'overdueCount')>0?'var(--red)':'var(--green4)'}">${sum(br,'overdueCount')}</td></tr>`;
+  }).join('');
+
+  // Per month table
+  const byMonth = {};
+  flt.forEach(r=>{ (byMonth[r.month]=byMonth[r.month]||[]).push(r); });
+  const mRows = Object.keys(byMonth).sort((a,b)=>MONTHS.indexOf(a)-MONTHS.indexOf(b)).map(m=>{
+    const mr=byMonth[m];
+    return `<tr><td><b>${m}</b></td><td class="r num">${fmtRp(sum(mr,'est'))}</td><td class="r num">${fmtRp(sum(mr,'act'))}</td>
+      <td class="r num">${fmtRp(sum(mr,'act')-sum(mr,'est'))}</td><td class="r num">${sum(mr,'contentOutput')}</td><td class="r num">${sum(mr,'taskCount')}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Belum ada data untuk filter ini.</td></tr>';
+
+  $('#content').innerHTML = `
+    <div class="toolbar">
+      <span class="lbl">Brand</span><select id="cBrand">${opt(brandOpts,f.brand)}</select>
+      <span class="lbl">Dari</span><select id="cFrom">${opt(monthOpts,f.from)}</select>
+      <span class="lbl">Sampai</span><select id="cTo">${opt(monthOpts,f.to)}</select>
+    </div>
+    <div class="section-title">📊 Ringkasan ${finData.year}</div>
+    <div class="brandgrid">${cards}</div>
+    <div class="section-title">🏢 Per Brand</div>
+    <div class="tablewrap"><table><thead><tr><th>Brand</th><th class="r">Budget Est.</th><th class="r">Budget Aktual</th><th class="r">Variance</th><th class="r">Content</th><th class="r">Task</th><th class="r">Overdue</th></tr></thead><tbody>${bRows}</tbody></table></div>
+    <div class="section-title">📅 Per Bulan</div>
+    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Budget Est.</th><th class="r">Budget Aktual</th><th class="r">Variance</th><th class="r">Content</th><th class="r">Task</th></tr></thead><tbody>${mRows}</tbody></table></div>`;
+  $('#cBrand').onchange=e=>{f.brand=e.target.value;renderFinance();};
+  $('#cFrom').onchange=e=>{f.from=e.target.value;renderFinance();};
+  $('#cTo').onchange=e=>{f.to=e.target.value;renderFinance();};
+}
+
+/* ===== MARKETING (rich, filter brand + bulan) ===== */
+function renderMarketing(){
+  const rows = mktData.rows, f = mktFilt;
+  const flt = rows.filter(r =>
+    (f.brand==='(Semua)'||r.brand===f.brand) &&
+    (f.month==='(Semua)'||r.month===f.month));
+
+  const opt=(arr,sel)=>arr.map(v=>`<option ${v===sel?'selected':''}>${v}</option>`).join('');
+  const brandOpts=['(Semua)'].concat(BR), monthOpts=['(Semua)'].concat(MONTHS);
+
+  const sum=(k)=>flt.reduce((s,x)=>s+(x[k]||0),0);
+  const avg=(k)=>flt.length?(flt.reduce((s,x)=>s+(x[k]||0),0)/flt.length):0;
+
+  const cards = `
+    <div class="bcard"><h3>Total Reach</h3><div class="big" style="font-size:23px">${fmtNum(sum('reach'))}</div></div>
+    <div class="bcard"><h3>Total Views</h3><div class="big" style="font-size:23px">${fmtNum(sum('views'))}</div></div>
+    <div class="bcard"><h3>Avg ER%</h3><div class="big" style="font-size:23px">${avg('avgER').toFixed(2)}%</div></div>
+    <div class="bcard"><h3>New Follows</h3><div class="big" style="font-size:23px">${fmtNum(sum('follows'))}</div></div>`;
+
+  const tb = flt.length ? flt.map(r=>`
+    <tr><td><b>${r.brand}</b></td><td>${r.month} ${r.year}</td><td class="r num">${fmtNum(r.posts)}</td>
+    <td class="r num">${fmtNum(r.reach)}</td><td class="r num">${fmtNum(r.views)}</td><td class="r num">${fmtNum(r.likes)}</td>
+    <td class="r num">${fmtNum(r.saves)}</td><td class="r num">${fmtNum(r.follows)}</td>
+    <td class="r num">${(r.avgER||0).toFixed(2)}%</td><td class="r num">${r.storyER===null?'—':r.storyER.toFixed(2)+'%'}</td></tr>`).join('')
+    : '<tr><td colspan="10" class="muted" style="text-align:center;padding:24px">Tidak ada data.</td></tr>';
+
+  $('#content').innerHTML = `
+    <div class="toolbar">
+      <span class="lbl">Brand</span><select id="mBrand">${opt(brandOpts,f.brand)}</select>
+      <span class="lbl">Bulan</span><select id="mMonth">${opt(monthOpts,f.month)}</select>
+    </div>
+    <div class="section-title">📊 Ringkasan KPI</div>
+    <div class="brandgrid">${cards}</div>
+    <div class="section-title">📑 Detail per Laporan</div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Brand</th><th>Periode</th><th class="r">Posts</th><th class="r">Reach</th><th class="r">Views</th><th class="r">Likes</th><th class="r">Saves</th><th class="r">Follows</th><th class="r">Avg ER</th><th class="r">Story ER</th></tr></thead>
+      <tbody>${tb}</tbody></table></div>`;
+  $('#mBrand').onchange=e=>{f.brand=e.target.value;renderMarketing();};
+  $('#mMonth').onchange=e=>{f.month=e.target.value;renderMarketing();};
+}
+
+/* ===== GENERIC GRID (fallback) ===== */
+const isNum = s => /^[-+]?(rp\.?\s*)?[\d.,]+%?$/i.test(String(s).trim()) && /\d/.test(String(s));
+const isEmptyRow = row => row.every(c => String(c).trim()==='');
+const nonEmpty = row => row.filter(c => String(c).trim()!=='').length;
+
+function pillize(s){
+  const z = String(s).toLowerCase();
+  if(z.includes('deal')) return '<span class="pill deal">'+s+'</span>';
+  if(z.includes('wait')) return '<span class="pill wait">'+s+'</span>';
+  if(z.includes('cancel')) return '<span class="pill cancel">'+s+'</span>';
+  if(z==='done') return '<span class="pill done">'+s+'</span>';
+  if(z==='on progress') return '<span class="pill prog">'+s+'</span>';
+  if(z==='planned') return '<span class="pill plan">'+s+'</span>';
+  return s;
+}
+
+function renderGrid(values){
+  if(!values || !values.length){ $('#content').innerHTML='<div class="loading">Sheet kosong.</div>'; return; }
+  const maxC = Math.max(...values.map(r=>r.length));
+  let html = ''; let tableRows = [];
+
+  const flush = () => {
+    if(!tableRows.length) return;
+    // baris pertama blok = header
+    const head = tableRows[0];
+    const body = tableRows.slice(1);
+    const ths = head.map((c,i)=>`<th class="${isNum(body.find(r=>r[i])? '' : '')||''}">${c||''}</th>`).join('');
+    const trs = body.map(r=>'<tr>'+r.map(c=>{
+      const v = String(c);
+      const cls = isNum(v)?'r num':'';
+      return `<td class="${cls}">${pillize(v)}</td>`;
+    }).join('')+'</tr>').join('');
+    html += `<div class="tablewrap"><table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+    tableRows = [];
+  };
+
+  values.forEach(row => {
+    if(isEmptyRow(row)){ flush(); return; }
+    const ne = nonEmpty(row);
+    const firstCell = String(row.find(c=>String(c).trim()!=='')||'');
+    if(ne===1){
+      // banner / sub-judul
+      flush();
+      const big = /DASHBOARD|AGENDA|SUMMARY|RINGKASAN|HOLDING/i.test(firstCell) || firstCell.length>30;
+      html += `<div class="${big?'gbanner':'gsub'}">${firstCell}</div>`;
+    } else {
+      tableRows.push(row.map(c=>String(c)));
+    }
+  });
+  flush();
+  $('#content').innerHTML = html || '<div class="loading">Tidak ada data.</div>';
+}
+
+$('#refreshBtn').onclick = () => load(true);
+
+/* ===== LOGIN BOD ===== */
+async function gateLogin(){
+  const pw = $('#gatePw').value;
+  const err = $('#gateErr');
+  err.className = 'gateErr';
+  if(!pw){ err.textContent='Masukkan password.'; err.className='gateErr show'; return; }
+  $('#gateBtn').disabled = true; $('#gateBtn').textContent='Memeriksa…';
+  try{
+    const r = await fetch(APPS_SCRIPT_URL+'?action=getAgenda&password='+encodeURIComponent(pw));
+    const d = await r.json();
+    if(!d.success){ err.textContent = d.error || 'Password salah.'; err.className='gateErr show'; return; }
+    BOD_PW = pw;
+    agendaData = d; // sudah kebawa dari login
+    sessionStorage.setItem('nrn_bod_pw', pw);
+    $('#gate').style.display='none';
+    renderTabs(); load();
+  }catch(e){
+    err.textContent='Gagal terhubung ke server.'; err.className='gateErr show';
+  }finally{
+    $('#gateBtn').disabled=false; $('#gateBtn').textContent='Masuk →';
+  }
+}
+$('#gateBtn').onclick = gateLogin;
+$('#gatePw').addEventListener('keydown', e=>{ if(e.key==='Enter') gateLogin(); });
+
+// Auto-login kalau sudah pernah masuk di sesi ini
+(function(){
+  const saved = sessionStorage.getItem('nrn_bod_pw');
+  if(saved){ $('#gatePw').value = saved; gateLogin(); }
+})();
+</script>
+</body>
+</html>
