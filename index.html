@@ -347,6 +347,17 @@ function renderFinance(){
       <td class="r num">${sum(mr,'contentOutput')}</td><td class="r num">${sum(mr,'taskCount')}</td></tr>`;
   }).join('') || '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">Belum ada data untuk filter ini.</td></tr>';
 
+  // Rincian pengeluaran (per task + checklist) dari nominal checklist
+  const cleanSub = s => String(s||'').replace(/^\s*\[[^\]]*\]\s*[-–—]?\s*/,'').replace(/\s*\(\s*rp[^)]*\)\s*$/i,'').trim();
+  const detail = (finData.detail||[]).filter(d =>
+    (f.brand==='(Semua)'||d.brand===f.brand) &&
+    (MONTHS.indexOf(d.month)>=fromIdx && MONTHS.indexOf(d.month)<=toIdx));
+  detail.sort((a,b)=> (MONTHS.indexOf(a.month)-MONTHS.indexOf(b.month)) || a.brand.localeCompare(b.brand) || a.card.localeCompare(b.card));
+  const detailTotal = detail.reduce((s,d)=>s+(d.nominal||0),0);
+  const dRows = detail.map(d=>
+    `<tr><td><b>${d.month}</b></td><td>${d.brand}</td><td>${d.card}</td><td class="muted">${cleanSub(d.subtask)}</td><td class="r num">${fmtRp(d.nominal)}</td></tr>`
+  ).join('') || '<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Belum ada nominal di checklist untuk filter ini.</td></tr>';
+
   $('#content').innerHTML = `
     <div class="toolbar">
       <span class="lbl">Brand</span><select id="cBrand">${opt(brandOpts,f.brand)}</select>
@@ -357,6 +368,8 @@ function renderFinance(){
     <div class="brandgrid">${cards}</div>
     <div class="section-title">🏢 Per Brand</div>
     <div class="tablewrap"><table><thead><tr><th>Brand</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Var vs Est</th><th class="r">Var vs Proy</th><th class="r">Content</th><th class="r">Task</th><th class="r">Overdue</th></tr></thead><tbody>${bRows}</tbody></table></div>
+    <div class="section-title">🧾 Rincian Pengeluaran (Proyeksi Checklist)</div>
+    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th>Brand</th><th>Task / Card</th><th>Checklist</th><th class="r">Nominal</th></tr></thead><tbody>${dRows}<tr><td colspan="4" class="r"><b>Total</b></td><td class="r num"><b>${fmtRp(detailTotal)}</b></td></tr></tbody></table></div>
     <div class="section-title">📅 Per Bulan</div>
     <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Var vs Est</th><th class="r">Var vs Proy</th><th class="r">Content</th><th class="r">Task</th></tr></thead><tbody>${mRows}</tbody></table></div>`;
   $('#cBrand').onchange=e=>{f.brand=e.target.value;renderFinance();};
@@ -377,11 +390,26 @@ function renderMarketing(){
   const sum=(k)=>flt.reduce((s,x)=>s+(x[k]||0),0);
   const avg=(k)=>flt.length?(flt.reduce((s,x)=>s+(x[k]||0),0)/flt.length):0;
 
+  // Pembanding vs bulan kalender sebelumnya (hanya saat 1 bulan dipilih)
+  const monthSel = f.month!=='(Semua)';
+  const prevMonth = (monthSel && MONTHS.indexOf(f.month)>0) ? MONTHS[MONTHS.indexOf(f.month)-1] : null;
+  const prevRows = prevMonth ? rows.filter(r=>(f.brand==='(Semua)'||r.brand===f.brand) && r.month===prevMonth) : [];
+  const hasPrev = !!(monthSel && prevMonth && prevRows.length);
+  const sumP=(k)=>prevRows.reduce((s,x)=>s+(x[k]||0),0);
+  const avgP=(k)=>prevRows.length?(prevRows.reduce((s,x)=>s+(x[k]||0),0)/prevRows.length):0;
+  const delta=(cur,prev,isPct)=>{
+    if(!monthSel) return '';
+    if(!hasPrev) return `<div class="muted" style="font-size:11px;margin-top:5px">— belum ada data ${prevMonth||'bulan sebelumnya'}</div>`;
+    const d=cur-prev, up=d>=0;
+    const val=isPct?((d>=0?'+':'')+d.toFixed(2)+'pp'):((d>=0?'+':'')+fmtNum(d));
+    return `<div style="font-size:11px;margin-top:5px;color:${up?'var(--green4)':'var(--red)'}">${up?'▲':'▼'} ${val} <span style="color:var(--muted)">vs ${prevMonth}</span></div>`;
+  };
+
   const cards = `
-    <div class="bcard"><h3>Total Reach</h3><div class="big" style="font-size:23px">${fmtNum(sum('reach'))}</div></div>
-    <div class="bcard"><h3>Total Views</h3><div class="big" style="font-size:23px">${fmtNum(sum('views'))}</div></div>
-    <div class="bcard"><h3>Avg ER%</h3><div class="big" style="font-size:23px">${avg('avgER').toFixed(2)}%</div></div>
-    <div class="bcard"><h3>New Follows</h3><div class="big" style="font-size:23px">${fmtNum(sum('follows'))}</div></div>`;
+    <div class="bcard"><h3>Total Reach</h3><div class="big" style="font-size:23px">${fmtNum(sum('reach'))}</div>${delta(sum('reach'),sumP('reach'),false)}</div>
+    <div class="bcard"><h3>Total Views</h3><div class="big" style="font-size:23px">${fmtNum(sum('views'))}</div>${delta(sum('views'),sumP('views'),false)}</div>
+    <div class="bcard"><h3>Avg ER%</h3><div class="big" style="font-size:23px">${avg('avgER').toFixed(2)}%</div>${delta(avg('avgER'),avgP('avgER'),true)}</div>
+    <div class="bcard"><h3>New Follows</h3><div class="big" style="font-size:23px">${fmtNum(sum('follows'))}</div>${delta(sum('follows'),sumP('follows'),false)}</div>`;
 
   const tb = flt.length ? flt.map(r=>`
     <tr><td><b>${r.brand}</b></td><td>${r.month} ${r.year}</td><td class="r num">${fmtNum(r.posts)}</td>
