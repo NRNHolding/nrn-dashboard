@@ -126,10 +126,10 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyxK1M5xtaXSUO2
 const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
 const TABS = [
-  { id:'agenda',    label:'📌 Accomplishment', type:'agenda' },
-  { id:'inquiry',   label:'📋 Inquiry',        type:'inquiry' },
-  { id:'finance',   label:'💰 Finance',        type:'finance' },
-  { id:'marketing', label:'📊 Marketing',      type:'marketing' },
+  { id:'agenda',    label:'📌 Agenda Accomplishment', type:'agenda' },
+  { id:'inquiry',   label:'📋 Inquiry',              type:'inquiry' },
+  { id:'finance',   label:'💰 Agenda (Finance)',     type:'finance' },
+  { id:'marketing', label:'📊 Marketing (Socmed KPI)', type:'marketing' },
 ];
 const BR = ['Revolt Industry','Radja Leather','Rove Gifts','Winddam ID'];
 
@@ -305,8 +305,10 @@ function renderFinance(){
     (MONTHS.indexOf(r.month)>=fromIdx && MONTHS.indexOf(r.month)<=toIdx));
 
   const sum = (arr,k)=>arr.reduce((s,x)=>s+(x[k]||0),0);
-  const est=sum(flt,'est'), act=sum(flt,'act'), vari=act-est;
+  const est=sum(flt,'est'), proj=sum(flt,'proj'), act=sum(flt,'act');
+  const vEst=act-est, vProj=act-proj;
   const task=sum(flt,'taskCount'), done=sum(flt,'doneCount'), ovd=sum(flt,'overdueCount');
+  const vcol=v=>v<=0?'var(--green4)':'var(--red)';
 
   const opt=(arr,sel)=>arr.map(v=>`<option ${v===sel?'selected':''}>${v}</option>`).join('');
   const brandOpts=['(Semua)'].concat(BR), monthOpts=['(Semua)'].concat(MONTHS);
@@ -314,8 +316,10 @@ function renderFinance(){
   // KPI cards
   const cards = `
     <div class="bcard"><h3>Budget Estimasi</h3><div class="big" style="font-size:22px">${fmtRp(est)}</div></div>
+    <div class="bcard"><h3>Proyeksi (Checklist)</h3><div class="big" style="font-size:22px">${fmtRp(proj)}</div></div>
     <div class="bcard"><h3>Budget Aktual</h3><div class="big" style="font-size:22px">${fmtRp(act)}</div></div>
-    <div class="bcard"><h3>Variance</h3><div class="big" style="font-size:22px;color:${vari<=0?'var(--green4)':'var(--red)'}">${fmtRp(vari)}</div></div>
+    <div class="bcard"><h3>Variance (Akt − Est / Proy)</h3><div class="big" style="font-size:16px;color:${vcol(vEst)}">${fmtRp(vEst)}</div>
+      <div class="muted" style="font-size:13px;margin-top:2px;color:${vcol(vProj)}">${fmtRp(vProj)} <span style="color:var(--muted)">vs Proyeksi</span></div></div>
     <div class="bcard"><h3>Task / Selesai / Overdue</h3><div class="statrow" style="margin-top:6px">
       <span class="chip plan">${task} task</span><span class="chip done">✓ ${done}</span><span class="chip cancel" style="background:var(--red-bg);color:var(--red)">⚠ ${ovd}</span></div></div>`;
 
@@ -323,9 +327,10 @@ function renderFinance(){
   const brandsToShow = f.brand==='(Semua)' ? BR : [f.brand];
   const bRows = brandsToShow.map(b=>{
     const br = flt.filter(r=>r.brand===b);
-    const e=sum(br,'est'), a=sum(br,'act'), v=a-e;
-    return `<tr><td><b>${b}</b></td><td class="r num">${fmtRp(e)}</td><td class="r num">${fmtRp(a)}</td>
-      <td class="r num" style="color:${v<=0?'var(--green4)':'var(--red)'}">${fmtRp(v)}</td>
+    const e=sum(br,'est'), p=sum(br,'proj'), a=sum(br,'act');
+    return `<tr><td><b>${b}</b></td><td class="r num">${fmtRp(e)}</td><td class="r num">${fmtRp(p)}</td><td class="r num">${fmtRp(a)}</td>
+      <td class="r num" style="color:${vcol(a-e)}">${fmtRp(a-e)}</td>
+      <td class="r num" style="color:${vcol(a-p)}">${fmtRp(a-p)}</td>
       <td class="r num">${sum(br,'contentOutput')}</td><td class="r num">${sum(br,'taskCount')}</td>
       <td class="r num" style="color:${sum(br,'overdueCount')>0?'var(--red)':'var(--green4)'}">${sum(br,'overdueCount')}</td></tr>`;
   }).join('');
@@ -335,9 +340,12 @@ function renderFinance(){
   flt.forEach(r=>{ (byMonth[r.month]=byMonth[r.month]||[]).push(r); });
   const mRows = Object.keys(byMonth).sort((a,b)=>MONTHS.indexOf(a)-MONTHS.indexOf(b)).map(m=>{
     const mr=byMonth[m];
-    return `<tr><td><b>${m}</b></td><td class="r num">${fmtRp(sum(mr,'est'))}</td><td class="r num">${fmtRp(sum(mr,'act'))}</td>
-      <td class="r num">${fmtRp(sum(mr,'act')-sum(mr,'est'))}</td><td class="r num">${sum(mr,'contentOutput')}</td><td class="r num">${sum(mr,'taskCount')}</td></tr>`;
-  }).join('') || '<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Belum ada data untuk filter ini.</td></tr>';
+    const e=sum(mr,'est'), p=sum(mr,'proj'), a=sum(mr,'act');
+    return `<tr><td><b>${m}</b></td><td class="r num">${fmtRp(e)}</td><td class="r num">${fmtRp(p)}</td><td class="r num">${fmtRp(a)}</td>
+      <td class="r num" style="color:${vcol(a-e)}">${fmtRp(a-e)}</td>
+      <td class="r num" style="color:${vcol(a-p)}">${fmtRp(a-p)}</td>
+      <td class="r num">${sum(mr,'contentOutput')}</td><td class="r num">${sum(mr,'taskCount')}</td></tr>`;
+  }).join('') || '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">Belum ada data untuk filter ini.</td></tr>';
 
   $('#content').innerHTML = `
     <div class="toolbar">
@@ -348,9 +356,9 @@ function renderFinance(){
     <div class="section-title">📊 Ringkasan ${finData.year}</div>
     <div class="brandgrid">${cards}</div>
     <div class="section-title">🏢 Per Brand</div>
-    <div class="tablewrap"><table><thead><tr><th>Brand</th><th class="r">Budget Est.</th><th class="r">Budget Aktual</th><th class="r">Variance</th><th class="r">Content</th><th class="r">Task</th><th class="r">Overdue</th></tr></thead><tbody>${bRows}</tbody></table></div>
+    <div class="tablewrap"><table><thead><tr><th>Brand</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Var vs Est</th><th class="r">Var vs Proy</th><th class="r">Content</th><th class="r">Task</th><th class="r">Overdue</th></tr></thead><tbody>${bRows}</tbody></table></div>
     <div class="section-title">📅 Per Bulan</div>
-    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Budget Est.</th><th class="r">Budget Aktual</th><th class="r">Variance</th><th class="r">Content</th><th class="r">Task</th></tr></thead><tbody>${mRows}</tbody></table></div>`;
+    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Var vs Est</th><th class="r">Var vs Proy</th><th class="r">Content</th><th class="r">Task</th></tr></thead><tbody>${mRows}</tbody></table></div>`;
   $('#cBrand').onchange=e=>{f.brand=e.target.value;renderFinance();};
   $('#cFrom').onchange=e=>{f.from=e.target.value;renderFinance();};
   $('#cTo').onchange=e=>{f.to=e.target.value;renderFinance();};
