@@ -142,6 +142,7 @@ let inqFilt = { brand:'(Semua)', status:'(Semua)' };
 let inqData = null;
 let finFilt = { brand:'(Semua)', from:'(Semua)', to:'(Semua)' };
 let finData = null;
+let finCardSort = 0; // 0=default, 1=asc, -1=desc (kolom Task/Card Rincian)
 let mktFilt = { brand:'Revolt Industry', month:'(Semua)' };
 let mktData = null;
 let lapFilt = { brand:'Revolt Industry', month: MONTHS[new Date().getMonth()] };
@@ -206,12 +207,25 @@ async function load(force){
 }
 
 /* ===== AGENDA (rich) ===== */
+// Normalisasi status → 4 label (kompatibel nilai lama Planned/On Progress)
+function statusLabel(st){
+  const z = String(st||'');
+  if(z==='Done') return 'Done';
+  if(z==='In Progress' || z==='On Progress') return 'In Progress';
+  if(z.indexOf('Checklist')>=0 || z==='Planned') return 'Checklist Created';
+  if(z.indexOf('Task')>=0) return 'Task Created';
+  return z || '—';
+}
 function statusPill(st){
-  if(st==='Done') return '<span class="pill done">Done</span>';
-  if(st==='On Progress') return '<span class="pill prog">On Progress</span>';
-  return '<span class="pill plan">Planned</span>';
+  const L = statusLabel(st);
+  if(L==='Done')             return '<span class="pill done">Done</span>';
+  if(L==='In Progress')      return '<span class="pill prog">In Progress</span>';
+  if(L==='Checklist Created')return '<span class="pill" style="background:#e3eef5;color:#1d4e6f">Checklist Created</span>';
+  if(L==='Task Created')     return '<span class="pill plan">Task Created</span>';
+  return '<span class="pill plan">'+L+'</span>';
 }
 function sisaCls(n){ if(n===null) return ''; if(n<=3) return 'red'; if(n<=7) return 'amber'; return 'green'; }
+let agendaSort = 0; // 0=off, 1=asc, -1=desc (kolom Card/Agenda)
 
 function renderAgenda(){
   const D = agendaData, f = agendaFilt;
@@ -226,10 +240,15 @@ function renderAgenda(){
       </div></div>`).join('');
   const brandOpts = ['(Semua)'].concat(D.summary.map(b=>b.brand));
   const bulanSet = ['(Semua)'].concat([...new Set(D.detail.map(d=>d.bulan).filter(Boolean))].sort((a,b)=>MONTHS.indexOf(a)-MONTHS.indexOf(b)));
-  const statusOpts = ['(Semua)','Planned','On Progress','Done'];
+  const STATUS_ORDER = ['Task Created','Checklist Created','In Progress','Done'];
+  const statusPresent = [...new Set(D.detail.map(d=>statusLabel(d.status)).filter(Boolean))]
+    .sort((a,b)=>STATUS_ORDER.indexOf(a)-STATUS_ORDER.indexOf(b));
+  const statusOpts = ['(Semua)'].concat(statusPresent);
   const opt=(arr,sel)=>arr.map(v=>`<option ${v===sel?'selected':''}>${v}</option>`).join('');
-  const rows = D.detail.filter(d =>
-    (f.brand==='(Semua)'||d.brand===f.brand)&&(f.bulan==='(Semua)'||d.bulan===f.bulan)&&(f.status==='(Semua)'||d.status===f.status));
+  let rows = D.detail.filter(d =>
+    (f.brand==='(Semua)'||d.brand===f.brand)&&(f.bulan==='(Semua)'||d.bulan===f.bulan)&&(f.status==='(Semua)'||statusLabel(d.status)===f.status));
+  if(agendaSort!==0) rows = [...rows].sort((a,b)=> agendaSort * String(a.card||'').localeCompare(String(b.card||'')));
+  const sortArrow = agendaSort===0 ? '↕' : (agendaSort===1 ? '▲' : '▼');
   const tb = rows.length ? rows.map(d=>`
     <tr><td><b>${d.brand}</b></td><td>${d.card||'—'}</td><td>${d.subtask||'—'}</td><td>${d.bulan||'—'}</td>
     <td class="dl">${d.deadline||'—'}</td><td class="dl ${sisaCls(d.sisaHari)}">${d.sisaHari===null?'—':d.sisaHari+' hari'}</td>
@@ -246,11 +265,12 @@ function renderAgenda(){
       <span class="tag">${rows.length} / ${D.detail.length} milestone</span>
     </div>
     <div class="tablewrap"><table>
-      <thead><tr><th>Brand</th><th>Card / Agenda</th><th>Subtask</th><th>Bulan</th><th>Deadline</th><th>Sisa Hari</th><th>Status</th><th>PIC</th></tr></thead>
+      <thead><tr><th>Brand</th><th id="thCard" style="cursor:pointer;user-select:none">Card / Agenda <span style="opacity:.6">${sortArrow}</span></th><th>Subtask</th><th>Bulan</th><th>Deadline</th><th>Sisa Hari</th><th>Status</th><th>PIC</th></tr></thead>
       <tbody>${tb}</tbody></table></div>`;
   $('#fBrand').onchange=e=>{f.brand=e.target.value;renderAgenda();};
   $('#fBulan').onchange=e=>{f.bulan=e.target.value;renderAgenda();};
   $('#fStatus').onchange=e=>{f.status=e.target.value;renderAgenda();};
+  $('#thCard').onclick=()=>{ agendaSort = agendaSort===1 ? -1 : (agendaSort===-1 ? 0 : 1); renderAgenda(); };
 }
 
 /* ===== INQUIRY (rich, filter client-side) ===== */
@@ -363,7 +383,9 @@ function renderFinance(){
   const detail = (finData.detail||[]).filter(d =>
     (f.brand==='(Semua)'||d.brand===f.brand) &&
     (MONTHS.indexOf(d.month)>=fromIdx && MONTHS.indexOf(d.month)<=toIdx));
-  detail.sort((a,b)=> (MONTHS.indexOf(a.month)-MONTHS.indexOf(b.month)) || a.brand.localeCompare(b.brand) || a.card.localeCompare(b.card));
+  if(finCardSort!==0) detail.sort((a,b)=> finCardSort * String(a.card||'').localeCompare(String(b.card||'')));
+  else detail.sort((a,b)=> (MONTHS.indexOf(a.month)-MONTHS.indexOf(b.month)) || a.brand.localeCompare(b.brand) || a.card.localeCompare(b.card));
+  const finCardArrow = finCardSort===0 ? '↕' : (finCardSort===1 ? '▲' : '▼');
   const detailTotal = detail.reduce((s,d)=>s+(d.nominal||0),0);
   const dRows = detail.map(d=>
     `<tr><td><b>${d.month}</b></td><td>${d.brand}</td><td>${d.card}</td><td class="muted">${cleanSub(d.subtask)}</td><td class="r num">${fmtRp(d.nominal)}</td></tr>`
@@ -380,12 +402,13 @@ function renderFinance(){
     <div class="section-title">🏢 Per Brand</div>
     <div class="tablewrap"><table><thead><tr><th>Brand</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Var vs Est</th><th class="r">Var vs Proy</th><th class="r">Content</th><th class="r">Task</th><th class="r">Overdue</th></tr></thead><tbody>${bRows}</tbody></table></div>
     <div class="section-title">🧾 Rincian Pengeluaran (Proyeksi Checklist)</div>
-    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th>Brand</th><th>Task / Card</th><th>Checklist</th><th class="r">Nominal</th></tr></thead><tbody>${dRows}<tr><td colspan="4" class="r"><b>Total</b></td><td class="r num"><b>${fmtRp(detailTotal)}</b></td></tr></tbody></table></div>
+    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th>Brand</th><th id="thFinCard" style="cursor:pointer;user-select:none">Task / Card <span style="opacity:.6">${finCardArrow}</span></th><th>Checklist</th><th class="r">Nominal</th></tr></thead><tbody>${dRows}<tr><td colspan="4" class="r"><b>Total</b></td><td class="r num"><b>${fmtRp(detailTotal)}</b></td></tr></tbody></table></div>
     <div class="section-title">📅 Per Bulan</div>
     <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Var vs Est</th><th class="r">Var vs Proy</th><th class="r">Content</th><th class="r">Task</th></tr></thead><tbody>${mRows}</tbody></table></div>`;
   $('#cBrand').onchange=e=>{f.brand=e.target.value;renderFinance();};
   $('#cFrom').onchange=e=>{f.from=e.target.value;renderFinance();};
   $('#cTo').onchange=e=>{f.to=e.target.value;renderFinance();};
+  $('#thFinCard').onclick=()=>{ finCardSort = finCardSort===1 ? -1 : (finCardSort===-1 ? 0 : 1); renderFinance(); };
 }
 
 /* ===== MARKETING (rich, filter brand + bulan) ===== */
