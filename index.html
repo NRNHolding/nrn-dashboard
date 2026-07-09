@@ -395,8 +395,8 @@ function renderFinance(){
   const finCardArrow = finCardSort===0 ? '↕' : (finCardSort===1 ? '▲' : '▼');
   const detailTotal = detail.reduce((s,d)=>s+(d.nominal||0),0);
   const dRows = detail.map(d=>
-    `<tr><td><b>${d.month}</b></td><td>${d.brand}</td><td>${d.card}</td><td class="muted">${cleanSub(d.subtask)}</td><td class="r num">${fmtRp(d.nominal)}</td></tr>`
-  ).join('') || '<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Belum ada nominal di checklist untuk filter ini.</td></tr>';
+    `<tr><td><b>${d.month}</b></td><td>${d.brand}</td><td>${d.card}</td><td class="muted">${cleanSub(d.subtask)}</td><td class="dl">${d.deadline||'—'}</td><td class="r num">${fmtRp(d.nominal)}</td></tr>`
+  ).join('') || '<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Belum ada nominal di checklist untuk filter ini.</td></tr>';
 
   $('#content').innerHTML = `
     <div class="toolbar">
@@ -409,7 +409,7 @@ function renderFinance(){
     <div class="section-title">🏢 Per Brand</div>
     <div class="tablewrap"><table><thead><tr><th>Brand</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Var vs Est</th><th class="r">Var vs Proy</th><th class="r">Content</th><th class="r">Task</th><th class="r">Overdue</th></tr></thead><tbody>${bRows}</tbody></table></div>
     <div class="section-title">🧾 Rincian Pengeluaran (Proyeksi Checklist)</div>
-    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th>Brand</th><th id="thFinCard" style="cursor:pointer;user-select:none">Task / Card <span style="opacity:.6">${finCardArrow}</span></th><th>Checklist</th><th class="r">Nominal</th></tr></thead><tbody>${dRows}<tr><td colspan="4" class="r"><b>Total</b></td><td class="r num"><b>${fmtRp(detailTotal)}</b></td></tr></tbody></table></div>
+    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th>Brand</th><th id="thFinCard" style="cursor:pointer;user-select:none">Task / Card <span style="opacity:.6">${finCardArrow}</span></th><th>Checklist</th><th>Tanggal</th><th class="r">Nominal</th></tr></thead><tbody>${dRows}<tr><td colspan="5" class="r"><b>Total</b></td><td class="r num"><b>${fmtRp(detailTotal)}</b></td></tr></tbody></table></div>
     <div class="section-title">📅 Per Bulan</div>
     <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Var vs Est</th><th class="r">Var vs Proy</th><th class="r">Content</th><th class="r">Task</th></tr></thead><tbody>${mRows}</tbody></table></div>`;
   $('#cBrand').onchange=e=>{f.brand=e.target.value;renderFinance();};
