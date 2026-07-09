@@ -258,7 +258,7 @@ function renderAgenda(){
   const sortArrow = agendaSort===0 ? '↕' : (agendaSort===1 ? '▲' : '▼');
   const tb = rows.length ? rows.map(d=>`
     <tr><td><b>${d.brand}</b></td><td>${d.card||'—'}</td><td>${d.subtask||'—'}</td><td>${d.bulan||'—'}</td>
-    <td class="dl">${d.deadline||'—'}</td><td class="dl ${sisaCls(d.sisaHari)}">${d.sisaHari===null?'—':d.sisaHari+' hari'}</td>
+    <td class="dl">${d.deadline||'—'}</td><td class="dl ${statusLabel(d.status)==='Done'?'green':sisaCls(d.sisaHari)}">${statusLabel(d.status)==='Done'?'✓ Completed':(d.sisaHari===null?'—':d.sisaHari+' hari')}</td>
     <td>${statusPill(d.status)}</td><td class="muted">${d.pic||'—'}</td></tr>`).join('')
     : '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px">Tidak ada data.</td></tr>';
   $('#content').innerHTML = `
@@ -588,7 +588,7 @@ async function renderLaporan(){
         <div class="bcard"><h3>○ Planned</h3><div class="big">${agPlan}</div></div>
       </div>
       <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Card</th><th>Subtask</th><th>Deadline</th><th class="r">Sisa</th><th>Status</th></tr></thead><tbody>${
-        ag.length?ag.map(x=>`<tr><td>${x.card}</td><td>${x.subtask}</td><td>${x.deadline||'—'}</td><td class="r">${x.sisaHari==null?'—':x.sisaHari+' hari'}</td><td>${statusPill(x.status)}</td></tr>`).join(''):'<tr><td colspan="5" class="muted" style="text-align:center;padding:16px">Tidak ada agenda bulan ini.</td></tr>'
+        ag.length?ag.map(x=>`<tr><td>${x.card}</td><td>${x.subtask}</td><td>${x.deadline||'—'}</td><td class="r">${statusLabel(x.status)==='Done'?'✓ Completed':(x.sisaHari==null?'—':x.sisaHari+' hari')}</td><td>${statusPill(x.status)}</td></tr>`).join(''):'<tr><td colspan="5" class="muted" style="text-align:center;padding:16px">Tidak ada agenda bulan ini.</td></tr>'
       }</tbody></table></div>
 
       <div class="section-title">📊 Sosmed ${f.month} vs ${prevM}</div>
