@@ -405,6 +405,7 @@ function renderFinance(){
       <span class="lbl">Sampai</span><select id="cTo">${opt(monthOpts,f.to)}</select>
     </div>
     <div class="section-title">📊 Ringkasan ${finData.year}</div>
+    <div class="muted" style="margin:-4px 0 10px;font-size:12px"><b>Estimasi</b> = patokan awal (tetap) · <b>Proyeksi</b> = rencana terkini dari checklist (bisa berubah) · <b>Aktual</b> = realisasi. Estimasi dihitung di bulan card berakhir.</div>
     <div class="brandgrid">${cards}</div>
     <div class="section-title">🏢 Per Brand</div>
     <div class="tablewrap"><table><thead><tr><th>Brand</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Var vs Est</th><th class="r">Var vs Proy</th><th class="r">Content</th><th class="r">Task</th><th class="r">Overdue</th></tr></thead><tbody>${bRows}</tbody></table></div>
