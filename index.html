@@ -343,8 +343,8 @@ function renderFinance(){
     (MONTHS.indexOf(r.month)>=fromIdx && MONTHS.indexOf(r.month)<=toIdx));
 
   const sum = (arr,k)=>arr.reduce((s,x)=>s+(x[k]||0),0);
-  const proj=sum(flt,'proj'), act=sum(flt,'act');
-  const vProj=act-proj;
+  const est=sum(flt,'est'), proj=sum(flt,'proj'), act=sum(flt,'act');
+  const vEst=act-est, vProj=act-proj;
   const task=sum(flt,'taskCount'), done=sum(flt,'doneCount'), ovd=sum(flt,'overdueCount');
   const vcol=v=>v<=0?'var(--green4)':'var(--red)';
 
@@ -353,9 +353,11 @@ function renderFinance(){
 
   // KPI cards
   const cards = `
+    <div class="bcard"><h3>Budget Estimasi</h3><div class="big" style="font-size:22px">${fmtRp(est)}</div></div>
     <div class="bcard"><h3>Proyeksi (Checklist)</h3><div class="big" style="font-size:22px">${fmtRp(proj)}</div></div>
     <div class="bcard"><h3>Budget Aktual</h3><div class="big" style="font-size:22px">${fmtRp(act)}</div></div>
-    <div class="bcard"><h3>Variance (Akt − Proyeksi)</h3><div class="big" style="font-size:22px;color:${vcol(vProj)}">${fmtRp(vProj)}</div></div>
+    <div class="bcard"><h3>Variance (Akt − Est / Proy)</h3><div class="big" style="font-size:16px;color:${vcol(vEst)}">${fmtRp(vEst)}</div>
+      <div class="muted" style="font-size:13px;margin-top:2px;color:${vcol(vProj)}">${fmtRp(vProj)} <span style="color:var(--muted)">vs Proyeksi</span></div></div>
     <div class="bcard"><h3>Task / Selesai / Overdue</h3><div class="statrow" style="margin-top:6px">
       <span class="chip plan">${task} task</span><span class="chip done">✓ ${done}</span><span class="chip cancel" style="background:var(--red-bg);color:var(--red)">⚠ ${ovd}</span></div></div>`;
 
@@ -363,8 +365,9 @@ function renderFinance(){
   const brandsToShow = f.brand==='(Semua)' ? BR : [f.brand];
   const bRows = brandsToShow.map(b=>{
     const br = flt.filter(r=>r.brand===b);
-    const p=sum(br,'proj'), a=sum(br,'act');
-    return `<tr><td><b>${b}</b></td><td class="r num">${fmtRp(p)}</td><td class="r num">${fmtRp(a)}</td>
+    const e=sum(br,'est'), p=sum(br,'proj'), a=sum(br,'act');
+    return `<tr><td><b>${b}</b></td><td class="r num">${fmtRp(e)}</td><td class="r num">${fmtRp(p)}</td><td class="r num">${fmtRp(a)}</td>
+      <td class="r num" style="color:${vcol(a-e)}">${fmtRp(a-e)}</td>
       <td class="r num" style="color:${vcol(a-p)}">${fmtRp(a-p)}</td>
       <td class="r num">${sum(br,'contentOutput')}</td><td class="r num">${sum(br,'taskCount')}</td>
       <td class="r num" style="color:${sum(br,'overdueCount')>0?'var(--red)':'var(--green4)'}">${sum(br,'overdueCount')}</td></tr>`;
@@ -375,11 +378,12 @@ function renderFinance(){
   flt.forEach(r=>{ (byMonth[r.month]=byMonth[r.month]||[]).push(r); });
   const mRows = Object.keys(byMonth).sort((a,b)=>MONTHS.indexOf(a)-MONTHS.indexOf(b)).map(m=>{
     const mr=byMonth[m];
-    const p=sum(mr,'proj'), a=sum(mr,'act');
-    return `<tr><td><b>${m}</b></td><td class="r num">${fmtRp(p)}</td><td class="r num">${fmtRp(a)}</td>
+    const e=sum(mr,'est'), p=sum(mr,'proj'), a=sum(mr,'act');
+    return `<tr><td><b>${m}</b></td><td class="r num">${fmtRp(e)}</td><td class="r num">${fmtRp(p)}</td><td class="r num">${fmtRp(a)}</td>
+      <td class="r num" style="color:${vcol(a-e)}">${fmtRp(a-e)}</td>
       <td class="r num" style="color:${vcol(a-p)}">${fmtRp(a-p)}</td>
       <td class="r num">${sum(mr,'contentOutput')}</td><td class="r num">${sum(mr,'taskCount')}</td></tr>`;
-  }).join('') || '<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Belum ada data untuk filter ini.</td></tr>';
+  }).join('') || '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">Belum ada data untuk filter ini.</td></tr>';
 
   // Rincian pengeluaran (per task + checklist) dari nominal checklist
   const cleanSub = s => String(s||'').replace(/^\s*\[[^\]]*\]\s*[-–—]?\s*/,'').replace(/\s*\(\s*rp[^)]*\)\s*$/i,'').trim();
@@ -403,11 +407,11 @@ function renderFinance(){
     <div class="section-title">📊 Ringkasan ${finData.year}</div>
     <div class="brandgrid">${cards}</div>
     <div class="section-title">🏢 Per Brand</div>
-    <div class="tablewrap"><table><thead><tr><th>Brand</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Variance</th><th class="r">Content</th><th class="r">Task</th><th class="r">Overdue</th></tr></thead><tbody>${bRows}</tbody></table></div>
+    <div class="tablewrap"><table><thead><tr><th>Brand</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Var vs Est</th><th class="r">Var vs Proy</th><th class="r">Content</th><th class="r">Task</th><th class="r">Overdue</th></tr></thead><tbody>${bRows}</tbody></table></div>
     <div class="section-title">🧾 Rincian Pengeluaran (Proyeksi Checklist)</div>
     <div class="tablewrap"><table><thead><tr><th>Bulan</th><th>Brand</th><th id="thFinCard" style="cursor:pointer;user-select:none">Task / Card <span style="opacity:.6">${finCardArrow}</span></th><th>Checklist</th><th>Tanggal</th><th class="r">Nominal</th></tr></thead><tbody>${dRows}<tr><td colspan="5" class="r"><b>Total</b></td><td class="r num"><b>${fmtRp(detailTotal)}</b></td></tr></tbody></table></div>
     <div class="section-title">📅 Per Bulan</div>
-    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Variance</th><th class="r">Content</th><th class="r">Task</th></tr></thead><tbody>${mRows}</tbody></table></div>`;
+    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Var vs Est</th><th class="r">Var vs Proy</th><th class="r">Content</th><th class="r">Task</th></tr></thead><tbody>${mRows}</tbody></table></div>`;
   $('#cBrand').onchange=e=>{f.brand=e.target.value;renderFinance();};
   $('#cFrom').onchange=e=>{f.from=e.target.value;renderFinance();};
   $('#cTo').onchange=e=>{f.to=e.target.value;renderFinance();};
@@ -593,9 +597,9 @@ async function renderLaporan(){
       </tbody></table></div>
 
       <div class="section-title">💰 Anggaran ${f.month} & ${nextM}</div>
-      <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Proyeksi</th><th class="r">Aktual</th><th class="r">Variance</th></tr></thead><tbody>
-        <tr><td><b>${f.month}</b> (ini)</td><td class="r num">${fmtRp(bCur.proj)}</td><td class="r num">${fmtRp(bCur.act)}</td><td class="r num" style="color:${vcol(bCur.act-bCur.proj)}">${fmtRp(bCur.act-bCur.proj)}</td></tr>
-        <tr><td><b>${nextM}</b> (depan)</td><td class="r num">${fmtRp(bNext.proj)}</td><td class="r num">${fmtRp(bNext.act)}</td><td class="r num" style="color:${vcol(bNext.act-bNext.proj)}">${fmtRp(bNext.act-bNext.proj)}</td></tr>
+      <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Aktual</th><th class="r">Var vs Proy</th></tr></thead><tbody>
+        <tr><td><b>${f.month}</b> (ini)</td><td class="r num">${fmtRp(bCur.est)}</td><td class="r num">${fmtRp(bCur.proj)}</td><td class="r num">${fmtRp(bCur.act)}</td><td class="r num" style="color:${vcol(bCur.act-bCur.proj)}">${fmtRp(bCur.act-bCur.proj)}</td></tr>
+        <tr><td><b>${nextM}</b> (depan)</td><td class="r num">${fmtRp(bNext.est)}</td><td class="r num">${fmtRp(bNext.proj)}</td><td class="r num">${fmtRp(bNext.act)}</td><td class="r num" style="color:${vcol(bNext.act-bNext.proj)}">${fmtRp(bNext.act-bNext.proj)}</td></tr>
       </tbody></table></div>
 
       <div class="section-title">📋 Progres Inquiry (${f.brand})</div>
