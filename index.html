@@ -825,6 +825,19 @@ function renderFinance(){
   const opt=(arr,sel)=>arr.map(v=>`<option ${v===sel?'selected':''}>${v}</option>`).join('');
   const brandOpts=['(Semua)'].concat(BR), monthOpts=['(Semua)'].concat(MONTHS);
 
+  // Rincian pengeluaran (per task + checklist) dari nominal checklist
+  const cleanSub = s => String(s||'').replace(/^\s*\[[^\]]*\]\s*[-–—]?\s*/,'').replace(/\s*\(\s*rp[^)]*\)\s*$/i,'').trim();
+  const detail = (finData.detail||[]).filter(d =>
+    (f.brand==='(Semua)'||d.brand===f.brand) &&
+    (MONTHS.indexOf(d.month)>=fromIdx && MONTHS.indexOf(d.month)<=toIdx));
+  if(finCardSort!==0) detail.sort((a,b)=> finCardSort * String(a.card||'').localeCompare(String(b.card||'')));
+  else detail.sort((a,b)=> (MONTHS.indexOf(a.month)-MONTHS.indexOf(b.month)) || a.brand.localeCompare(b.brand) || a.card.localeCompare(b.card));
+  const finCardArrow = finCardSort===0 ? '↕' : (finCardSort===1 ? '▲' : '▼');
+  const detailTotal = detail.reduce((s,d)=>s+(d.nominal||0),0);
+  const dRows = detail.map(d=>
+    `<tr><td><b>${d.month}</b></td><td>${d.brand}</td><td>${d.card}</td><td class="muted">${cleanSub(d.subtask)}</td><td class="dl">${d.deadline||'—'}</td><td class="r num">${fmtRp(d.nominal)}</td></tr>`
+  ).join('') || '<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Belum ada nominal di checklist untuk filter ini.</td></tr>';
+
   // Rincian Budget Estimasi per card (klik kartu Estimasi)
   const estDet = (finData.estDetail||[]).filter(d =>
     (f.brand==='(Semua)'||d.brand===f.brand) &&
@@ -839,11 +852,43 @@ function renderFinance(){
     <div class="muted" style="margin:-4px 0 10px;font-size:12px">Diambil dari <b>Estimated Budget:</b> di deskripsi tiap card Trello, dihitung di bulan card berakhir.</div>
     <div class="tablewrap"><table><thead><tr><th>Card / Agenda</th><th>Brand</th><th>Bulan</th><th>List</th><th class="r">Estimasi</th></tr></thead><tbody>${eRows}<tr><td colspan="4" class="r"><b>Total</b></td><td class="r num"><b>${fmtRp(estDetTotal)}</b></td></tr></tbody></table></div>`;
 
+  /* ── PECAHAN ESTIMASI ────────────────────────────────────────────
+     Konsep: Proyeksi = rincian/pecahan dari Budget Estimasi.
+     Estimasi = angka besar di deskripsi card · Proyeksi = jumlah nominal
+     (Rp ...) di item checklist card yang sama. Digabung per brand+card,
+     lalu dinilai: sudah dirinci berapa persen? */
+  const pecahMap = {};
+  const kunci = (b,c)=>b+'|'+c;
+  estDet.forEach(d=>{ const k=kunci(d.brand,d.card);
+    if(!pecahMap[k]) pecahMap[k]={brand:d.brand,card:d.card,month:d.month,est:0,proj:0,n:0};
+    pecahMap[k].est += d.est||0; });
+  detail.forEach(d=>{ const k=kunci(d.brand,d.card);
+    if(!pecahMap[k]) pecahMap[k]={brand:d.brand,card:d.card,month:d.month,est:0,proj:0,n:0};
+    pecahMap[k].proj += d.nominal||0; pecahMap[k].n++; });
+  const pecahArr = Object.keys(pecahMap).map(k=>pecahMap[k]);
+  // Toleransi selisih pembulatan: 0,5% dari estimasi (minimal Rp 1.000)
+  const statusPecah = p => {
+    const sisa = p.est - p.proj;
+    const tol  = Math.max(1000, p.est*0.005);
+    if(!p.est && p.proj)  return {k:'noest',   urut:1, label:'Estimasi belum diisi', warna:'var(--amber)',  ket:'Sudah ada rincian, tapi patokan estimasinya belum ditulis di deskripsi card.'};
+    if(!p.est && !p.proj) return {k:'kosong',  urut:4, label:'Belum ada angka',      warna:'var(--text3)',  ket:'Card ini belum punya estimasi maupun rincian.'};
+    if(!p.proj)           return {k:'belum',   urut:2, label:'Belum dirinci',        warna:'var(--red)',    ket:'Estimasi sudah ada, tapi belum satu pun checklist diberi nominal.'};
+    if(sisa >  tol)       return {k:'sebagian',urut:3, label:'Baru sebagian',        warna:'var(--amber)',  ket:'Rincian belum menutup seluruh estimasi.'};
+    if(sisa < -tol)       return {k:'lebih',   urut:0, label:'Melebihi estimasi',    warna:'var(--red)',    ket:'Jumlah rincian sudah melewati patokan estimasi.'};
+    return                       {k:'pas',     urut:5, label:'Terpecah pas',         warna:'var(--green4)', ket:'Rincian sudah pas menutup estimasi.'};
+  };
+  pecahArr.forEach(p=>{ p.st = statusPecah(p); });
+  // Yang perlu perhatian di atas; dalam kelompok sama, nilai terbesar dulu
+  pecahArr.sort((a,b)=> a.st.urut-b.st.urut || (b.est||b.proj)-(a.est||a.proj));
+  const nPecah = {};
+  pecahArr.forEach(p=>{ nPecah[p.st.k]=(nPecah[p.st.k]||0)+1; });
+  const dirinciPct = est ? Math.round(proj/est*100) : 0;
+
   // ── Kartu ringkasan ──────────────────────────────────────────────
   const infoIcon = t => `<span class="info" tabindex="0">i<span class="tip">${t}</span></span>`;
   const TIP = {
-    est:  'Patokan awal yang <b>tetap</b>. Sumber: baris <b>Estimated Budget:</b> di deskripsi card Trello. Dihitung penuh di bulan card berakhir. Klik kartu untuk lihat dari card mana saja.',
-    proj: 'Rencana <b>terkini</b> dan bisa berubah. Sumber: nominal <b>(Rp ...)</b> yang ditulis di item checklist, dihitung di bulan deadline item itu. Klik kartu untuk rincian per card.',
+    est:  'Angka <b>besar/patokan</b>. Sumber: baris <b>Estimated Budget:</b> di deskripsi card Trello. Ini yang nanti <b>dipecah</b> jadi item-item checklist. Klik kartu untuk lihat dari card mana saja.',
+    proj: 'Hasil <b>memecah estimasi</b> jadi item konkret. Sumber: nominal <b>(Rp ...)</b> di item checklist. Idealnya jumlahnya <b>sama dengan Estimasi</b> — kalau masih kurang, berarti belum semua estimasi dirinci. Klik kartu untuk rincian per card.',
     act:  'Uang yang <b>benar-benar keluar</b> (realisasi). Sumber: kolom Budget Aktual di Google Sheets, diisi manual oleh tim. Klik kartu untuk lihat brand/bulan mana yang sudah & belum terisi.',
     vEst: 'Aktual dibandingkan <b>patokan awal</b>. Menjawab: realisasi meleset berapa jauh dari estimasi yang dibuat di awal?',
     vProj:'Aktual dibandingkan <b>rencana terkini</b>. Menjawab: belanja sesuai rencana terakhir atau tidak? Ini yang paling relevan untuk kontrol bulan berjalan.',
@@ -866,20 +911,67 @@ function renderFinance(){
       <div class="bar"><i class="${cls}" style="width:${Math.min(pct,100)}%"></i></div>
       <div class="vsub muted">${pct}% dari ${baseNama.toLowerCase()} terpakai</div></div>`;
   };
-  const kartuNilai = (id,judul,nilai,tip,kosongTxt) => `
+  const kartuNilai = (id,judul,nilai,tip,kosongTxt,extra) => `
     <div class="bcard klik${finOpen===id?' on':''}" id="fin-${id}" title="Klik untuk lihat rincian">
       <h3>${judul} ${infoIcon(tip)}</h3>
       <div class="big" style="font-size:22px">${nilai?fmtRp(nilai):`<span class="lap-na">${kosongTxt}</span>`}</div>
+      ${extra||''}
       <div class="lihat">${finOpen===id?'▲ tutup rincian':'▼ klik lihat rincian'}</div></div>`;
+
+  // Kartu Proyeksi diberi bar "berapa % estimasi sudah dirinci"
+  const barDirinci = !est ? '' : `
+    <div class="bar"><i class="${dirinciPct>100?'over':(dirinciPct<50?'low':'')}" style="width:${Math.min(dirinciPct,100)}%"></i></div>
+    <div class="vsub muted">${dirinciPct}% dari estimasi sudah dirinci${dirinciPct<100?` · sisa ${fmtRp(Math.max(0,est-proj))}`:''}</div>`;
 
   const cards = `
     ${kartuNilai('est','Budget Estimasi',est,TIP.est,'belum diisi')}
-    ${kartuNilai('proj','Proyeksi (Checklist)',proj,TIP.proj,'belum ada')}
+    ${kartuNilai('proj','Proyeksi (pecahan estimasi)',proj,TIP.proj,'belum ada',barDirinci)}
     ${kartuNilai('act','Budget Aktual',act,TIP.act,'belum terupdate')}
     ${vCard('Selisih vs Estimasi',est,'Estimasi',TIP.vEst)}
     ${vCard('Selisih vs Proyeksi',proj,'Proyeksi',TIP.vProj)}
     <div class="bcard"><h3>Task / Selesai / Overdue</h3><div class="statrow" style="margin-top:6px">
       <span class="chip plan">${task} task</span><span class="chip done">✓ ${done}</span><span class="chip cancel" style="background:var(--red-bg);color:var(--red)">⚠ ${ovd}</span></div></div>`;
+
+  // ── Tabel Pecahan Estimasi ───────────────────────────────────────
+  const pRowsPecah = pecahArr.map(p=>{
+    const st=p.st, sisa=p.est-p.proj;
+    const pct = p.est ? Math.round(p.proj/p.est*100) : (p.proj?100:0);
+    const barCls = pct>100?'over':(pct<50?'low':'');
+    const sisaTxt = !p.est ? '<span class="lap-na">—</span>'
+      : sisa>0 ? `<span style="color:var(--amber)">${fmtRp(sisa)}</span>`
+      : sisa<0 ? `<span style="color:var(--red)">lebih ${fmtRp(-sisa)}</span>`
+      : '<span style="color:var(--green4)">—</span>';
+    return `<tr>
+      <td>${p.card||'—'}</td><td>${p.brand}</td><td><b>${p.month||'—'}</b></td>
+      <td class="r num">${p.est?fmtRp(p.est):'<span class="lap-na">belum diisi</span>'}</td>
+      <td class="r num">${p.proj?fmtRp(p.proj):'<span class="lap-na">belum dirinci</span>'}</td>
+      <td class="r num">${sisaTxt}</td>
+      <td style="min-width:110px">
+        <div class="bar" style="margin-top:0"><i class="${barCls}" style="width:${Math.min(pct,100)}%"></i></div>
+        <div class="vsub muted" style="margin-top:2px">${p.est?pct+'%':'—'} · ${p.n} item</div></td>
+      <td><span class="pill" style="background:transparent;border:1px solid ${st.warna};color:${st.warna}" title="${st.ket}">${st.label}</span></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">Belum ada card dengan estimasi maupun rincian untuk filter ini.</td></tr>';
+
+  const chip=(k,label,warna)=> nPecah[k] ? `<span class="chip" style="background:transparent;border:1px solid ${warna};color:${warna}">${label}: ${nPecah[k]}</span>` : '';
+  const pecahSection = `
+    <div class="section-title">🧩 Pecahan Estimasi — sudah dirinci berapa?</div>
+    <div class="muted" style="margin:-4px 0 8px;font-size:12px">
+      <b>Proyeksi adalah pecahan dari Budget Estimasi.</b> Estimasi ditulis sekali di deskripsi card (<code>Estimated Budget:</code>),
+      lalu dipecah jadi item checklist bernominal <code>(Rp ...)</code>. Kalau semua sudah dirinci, jumlah pecahan = estimasi.
+      Tabel ini menunjukkan card mana yang <b>belum selesai dipecah</b>.</div>
+    <div class="statrow" style="margin-bottom:8px">
+      ${chip('lebih','⚠ Melebihi estimasi','var(--red)')}
+      ${chip('belum','● Belum dirinci','var(--red)')}
+      ${chip('noest','◐ Estimasi belum diisi','var(--amber)')}
+      ${chip('sebagian','◐ Baru sebagian','var(--amber)')}
+      ${chip('pas','✓ Terpecah pas','var(--green4)')}
+      ${chip('kosong','○ Belum ada angka','var(--text3)')}
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Card / Agenda</th><th>Brand</th><th>Bulan</th><th class="r">Estimasi</th><th class="r">Sudah dirinci</th><th class="r">Sisa</th><th>Kelengkapan</th><th>Status</th></tr></thead>
+      <tbody>${pRowsPecah}</tbody></table></div>
+    <div class="ins-foot">Diurutkan: yang paling perlu diperbaiki di atas. <b>Sisa</b> = bagian estimasi yang belum dituangkan jadi item checklist. Rincian tiap item ada di tabel <b>Rincian Pengeluaran</b> di bawah.</div>`;
 
   // Per brand table
   const brandsToShow = f.brand==='(Semua)' ? BR : [f.brand];
@@ -905,18 +997,7 @@ function renderFinance(){
       <td class="r num">${sum(mr,'contentOutput')}</td><td class="r num">${sum(mr,'taskCount')}</td></tr>`;
   }).join('') || '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">Belum ada data untuk filter ini.</td></tr>';
 
-  // Rincian pengeluaran (per task + checklist) dari nominal checklist
-  const cleanSub = s => String(s||'').replace(/^\s*\[[^\]]*\]\s*[-–—]?\s*/,'').replace(/\s*\(\s*rp[^)]*\)\s*$/i,'').trim();
-  const detail = (finData.detail||[]).filter(d =>
-    (f.brand==='(Semua)'||d.brand===f.brand) &&
-    (MONTHS.indexOf(d.month)>=fromIdx && MONTHS.indexOf(d.month)<=toIdx));
-  if(finCardSort!==0) detail.sort((a,b)=> finCardSort * String(a.card||'').localeCompare(String(b.card||'')));
-  else detail.sort((a,b)=> (MONTHS.indexOf(a.month)-MONTHS.indexOf(b.month)) || a.brand.localeCompare(b.brand) || a.card.localeCompare(b.card));
-  const finCardArrow = finCardSort===0 ? '↕' : (finCardSort===1 ? '▲' : '▼');
-  const detailTotal = detail.reduce((s,d)=>s+(d.nominal||0),0);
-  const dRows = detail.map(d=>
-    `<tr><td><b>${d.month}</b></td><td>${d.brand}</td><td>${d.card}</td><td class="muted">${cleanSub(d.subtask)}</td><td class="dl">${d.deadline||'—'}</td><td class="r num">${fmtRp(d.nominal)}</td></tr>`
-  ).join('') || '<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Belum ada nominal di checklist untuk filter ini.</td></tr>';
+
 
   // Panel Proyeksi: ringkasan per card (rinci per checklist ada di tabel bawah)
   const pMap = {};
@@ -954,6 +1035,7 @@ function renderFinance(){
     <div class="muted" style="margin:-4px 0 10px;font-size:12px">Arahkan ke ikon <span class="info" tabindex="0">i</span> di tiap kartu untuk tahu arti &amp; sumber angkanya · klik kartu untuk lihat rinciannya.</div>
     <div class="brandgrid">${cards}</div>
     ${estPanel}${projPanel}${actPanel}
+    ${pecahSection}
     <div class="section-title">🏢 Per Brand</div>
     <div class="tablewrap"><table><thead><tr><th>Brand</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Selisih vs Est.</th><th class="r">Selisih vs Proy.</th><th class="r">Content</th><th class="r">Task</th><th class="r">Overdue</th></tr></thead><tbody>${bRows}</tbody></table></div>
     <div class="section-title">🧾 Rincian Pengeluaran (Proyeksi Checklist)</div>
