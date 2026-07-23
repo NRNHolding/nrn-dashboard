@@ -84,6 +84,40 @@ td.r,th.r{text-align:right}
 .ins-col code{font-family:'DM Mono',monospace;font-size:11px;background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px}
 .ins-empty{font-size:12px;color:var(--text3)}
 .ins-foot{margin-top:11px;font-size:11.5px;color:var(--text3);line-height:1.5}
+/* Laporan (layar) */
+.lap-na{font-size:12px;color:var(--text3);font-style:italic;font-weight:400}
+tr.lap-od td{background:#fdf0f0}
+tr.lap-soon td{background:#fffaeb}
+/* Kartu ringkasan Finance */
+.bcard.klik{cursor:pointer;transition:border-color .12s,box-shadow .12s}
+.bcard.klik:hover{border-color:var(--gold);box-shadow:0 3px 14px rgba(200,169,110,.28)}
+.bcard.on{border-color:var(--gold);background:var(--gold-bg)}
+.bcard .lihat{font-size:10.5px;color:var(--text3);margin-top:5px;letter-spacing:.02em}
+.bcard.on .lihat{color:var(--amber);font-weight:600}
+.vsub{font-size:11.5px;margin-top:3px;line-height:1.4}
+.vnetral{color:var(--text3);font-style:italic}
+.bar{height:5px;border-radius:3px;background:var(--cream2);margin-top:6px;overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:3px;background:var(--green4)}
+.bar>i.over{background:var(--red)}
+.bar>i.low{background:var(--amber)}
+/* Ikon penjelasan ⓘ */
+.info{display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;
+  background:var(--cream3);color:var(--text2);font-size:9px;font-weight:700;font-style:normal;cursor:help;
+  margin-left:4px;position:relative;vertical-align:middle;text-transform:none;letter-spacing:0}
+.info:hover,.info:focus{background:var(--gold);color:#fff;outline:none}
+.info .tip{visibility:hidden;opacity:0;position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);
+  width:235px;max-width:calc(100vw - 16px);background:var(--green);color:#fff;font-size:11px;font-weight:400;line-height:1.5;
+  padding:8px 10px;border-radius:7px;text-align:left;z-index:40;
+  box-shadow:0 5px 18px rgba(0,0,0,.22);transition:opacity .12s;pointer-events:none}
+.info .tip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);
+  border:5px solid transparent;border-top-color:var(--green)}
+/* Balik arah kalau mepet tepi layar (kelas dipasang posisiTooltip()) */
+.info .tip.ki{left:auto;right:0;transform:none}
+.info .tip.ki::after{left:auto;right:3px;transform:none}
+.info .tip.ka{left:0;right:auto;transform:none}
+.info .tip.ka::after{left:3px;transform:none}
+.info:hover .tip,.info:focus .tip{visibility:visible;opacity:1}
+.info .tip b{color:var(--gold2)}
 .dl{font-family:'DM Mono',monospace;font-weight:600}
 .dl.red{color:var(--red)}.dl.amber{color:var(--amber)}.dl.green{color:var(--green4)}
 .muted{color:var(--text3)}
@@ -162,7 +196,7 @@ let inqData = null;
 let finFilt = { brand:'(Semua)', from:'(Semua)', to:'(Semua)' };
 let finData = null;
 let finCardSort = 0; // 0=default, 1=asc, -1=desc (kolom Task/Card Rincian)
-let estOpen = false; // rincian Budget Estimasi per card (klik kartu Estimasi)
+let finOpen = ''; // panel rincian yg terbuka di Finance: '' | 'est' | 'proj' | 'act'
 let mktFilt = { brand:'Revolt Industry', month:'(Semua)' };
 let mktData = null;
 let agFilt = { brand:'(Semua)', bulan:'(Semua)' };
@@ -780,6 +814,13 @@ function renderFinance(){
   const vEst=act-est, vProj=act-proj;
   const task=sum(flt,'taskCount'), done=sum(flt,'doneCount'), ovd=sum(flt,'overdueCount');
   const vcol=v=>v<=0?'var(--green4)':'var(--red)';
+  // Sel selisih di tabel. Kalau aktual/pembanding kosong → "—" netral, JANGAN hijau:
+  // hijau di situ terbaca "hemat" padahal artinya cuma belum ada datanya.
+  const vCell=(a,base)=>{
+    if(!a || !base) return '<span class="lap-na">—</span>';
+    const d=a-base, lebih=d>0;
+    return `<span style="color:${lebih?'var(--red)':'var(--green4)'}" title="${lebih?'di atas':'di bawah'} pembanding">${lebih?'▲':'▼'} ${fmtRp(Math.abs(d))}</span>`;
+  };
 
   const opt=(arr,sel)=>arr.map(v=>`<option ${v===sel?'selected':''}>${v}</option>`).join('');
   const brandOpts=['(Semua)'].concat(BR), monthOpts=['(Semua)'].concat(MONTHS);
@@ -793,18 +834,50 @@ function renderFinance(){
   const eRows = estDet.map(d=>
     `<tr><td>${d.card||'—'}</td><td>${d.brand}</td><td><b>${d.month||'—'}</b></td><td class="muted">${d.list||'—'}</td><td class="r num">${fmtRp(d.est)}</td></tr>`
   ).join('') || '<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Belum ada card dengan Estimated Budget untuk filter ini.</td></tr>';
-  const estPanel = !estOpen ? '' : `
+  const estPanel = finOpen!=='est' ? '' : `
     <div class="section-title">🔎 Rincian Budget Estimasi — dari card mana saja</div>
     <div class="muted" style="margin:-4px 0 10px;font-size:12px">Diambil dari <b>Estimated Budget:</b> di deskripsi tiap card Trello, dihitung di bulan card berakhir.</div>
     <div class="tablewrap"><table><thead><tr><th>Card / Agenda</th><th>Brand</th><th>Bulan</th><th>List</th><th class="r">Estimasi</th></tr></thead><tbody>${eRows}<tr><td colspan="4" class="r"><b>Total</b></td><td class="r num"><b>${fmtRp(estDetTotal)}</b></td></tr></tbody></table></div>`;
 
-  // KPI cards
+  // ── Kartu ringkasan ──────────────────────────────────────────────
+  const infoIcon = t => `<span class="info" tabindex="0">i<span class="tip">${t}</span></span>`;
+  const TIP = {
+    est:  'Patokan awal yang <b>tetap</b>. Sumber: baris <b>Estimated Budget:</b> di deskripsi card Trello. Dihitung penuh di bulan card berakhir. Klik kartu untuk lihat dari card mana saja.',
+    proj: 'Rencana <b>terkini</b> dan bisa berubah. Sumber: nominal <b>(Rp ...)</b> yang ditulis di item checklist, dihitung di bulan deadline item itu. Klik kartu untuk rincian per card.',
+    act:  'Uang yang <b>benar-benar keluar</b> (realisasi). Sumber: kolom Budget Aktual di Google Sheets, diisi manual oleh tim. Klik kartu untuk lihat brand/bulan mana yang sudah & belum terisi.',
+    vEst: 'Aktual dibandingkan <b>patokan awal</b>. Menjawab: realisasi meleset berapa jauh dari estimasi yang dibuat di awal?',
+    vProj:'Aktual dibandingkan <b>rencana terkini</b>. Menjawab: belanja sesuai rencana terakhir atau tidak? Ini yang paling relevan untuk kontrol bulan berjalan.',
+  };
+  // Kartu selisih: pakai kata, bukan cuma angka minus. Kalau aktual belum ada,
+  // sengaja NETRAL (bukan hijau) supaya tidak terbaca "hemat" padahal cuma belum dicatat.
+  const vCard = (judul, base, baseNama, tip) => {
+    const head = `<h3>${judul} ${infoIcon(tip)}</h3>`;
+    if(!act)  return `<div class="bcard">${head}<div class="big" style="font-size:17px;color:var(--text3)">—</div>
+      <div class="vsub vnetral">belum bisa dihitung — aktual belum terupdate</div></div>`;
+    if(!base) return `<div class="bcard">${head}<div class="big" style="font-size:17px;color:var(--text3)">—</div>
+      <div class="vsub vnetral">${baseNama} belum diisi, tidak ada pembanding</div></div>`;
+    const d=act-base, pct=Math.round(act/base*100), lebih=d>0;
+    const warna = d===0 ? 'var(--text2)' : (lebih?'var(--red)':'var(--green4)');
+    const kata  = d===0 ? 'pas dengan '+baseNama.toLowerCase() : (lebih?'di atas '+baseNama.toLowerCase():'di bawah '+baseNama.toLowerCase());
+    const cls = pct>100?'over':(pct<50?'low':'');
+    return `<div class="bcard">${head}
+      <div class="big" style="font-size:19px;color:${warna}">${fmtRp(Math.abs(d))}</div>
+      <div class="vsub" style="color:${warna}">${kata}</div>
+      <div class="bar"><i class="${cls}" style="width:${Math.min(pct,100)}%"></i></div>
+      <div class="vsub muted">${pct}% dari ${baseNama.toLowerCase()} terpakai</div></div>`;
+  };
+  const kartuNilai = (id,judul,nilai,tip,kosongTxt) => `
+    <div class="bcard klik${finOpen===id?' on':''}" id="fin-${id}" title="Klik untuk lihat rincian">
+      <h3>${judul} ${infoIcon(tip)}</h3>
+      <div class="big" style="font-size:22px">${nilai?fmtRp(nilai):`<span class="lap-na">${kosongTxt}</span>`}</div>
+      <div class="lihat">${finOpen===id?'▲ tutup rincian':'▼ klik lihat rincian'}</div></div>`;
+
   const cards = `
-    <div class="bcard" id="estCard" style="cursor:pointer" title="Klik untuk lihat rincian per card"><h3>Budget Estimasi ${estOpen?'▲':'▼'}</h3><div class="big" style="font-size:22px">${fmtRp(est)}</div><div class="biglbl" style="margin:4px 0 0">klik lihat rincian</div></div>
-    <div class="bcard"><h3>Proyeksi (Checklist)</h3><div class="big" style="font-size:22px">${fmtRp(proj)}</div></div>
-    <div class="bcard"><h3>Budget Aktual</h3><div class="big" style="font-size:22px">${fmtRp(act)}</div></div>
-    <div class="bcard"><h3>Variance (Akt − Est / Proy)</h3><div class="big" style="font-size:16px;color:${vcol(vEst)}">${fmtRp(vEst)}</div>
-      <div class="muted" style="font-size:13px;margin-top:2px;color:${vcol(vProj)}">${fmtRp(vProj)} <span style="color:var(--muted)">vs Proyeksi</span></div></div>
+    ${kartuNilai('est','Budget Estimasi',est,TIP.est,'belum diisi')}
+    ${kartuNilai('proj','Proyeksi (Checklist)',proj,TIP.proj,'belum ada')}
+    ${kartuNilai('act','Budget Aktual',act,TIP.act,'belum terupdate')}
+    ${vCard('Selisih vs Estimasi',est,'Estimasi',TIP.vEst)}
+    ${vCard('Selisih vs Proyeksi',proj,'Proyeksi',TIP.vProj)}
     <div class="bcard"><h3>Task / Selesai / Overdue</h3><div class="statrow" style="margin-top:6px">
       <span class="chip plan">${task} task</span><span class="chip done">✓ ${done}</span><span class="chip cancel" style="background:var(--red-bg);color:var(--red)">⚠ ${ovd}</span></div></div>`;
 
@@ -813,9 +886,9 @@ function renderFinance(){
   const bRows = brandsToShow.map(b=>{
     const br = flt.filter(r=>r.brand===b);
     const e=sum(br,'est'), p=sum(br,'proj'), a=sum(br,'act');
-    return `<tr><td><b>${b}</b></td><td class="r num">${fmtRp(e)}</td><td class="r num">${fmtRp(p)}</td><td class="r num">${fmtRp(a)}</td>
-      <td class="r num" style="color:${vcol(a-e)}">${fmtRp(a-e)}</td>
-      <td class="r num" style="color:${vcol(a-p)}">${fmtRp(a-p)}</td>
+    return `<tr><td><b>${b}</b></td><td class="r num">${e?fmtRp(e):'<span class="lap-na">belum diisi</span>'}</td><td class="r num">${p?fmtRp(p):'<span class="lap-na">belum ada</span>'}</td><td class="r num">${a?fmtRp(a):'<span class="lap-na">belum terupdate</span>'}</td>
+      <td class="r num">${vCell(a,e)}</td>
+      <td class="r num">${vCell(a,p)}</td>
       <td class="r num">${sum(br,'contentOutput')}</td><td class="r num">${sum(br,'taskCount')}</td>
       <td class="r num" style="color:${sum(br,'overdueCount')>0?'var(--red)':'var(--green4)'}">${sum(br,'overdueCount')}</td></tr>`;
   }).join('');
@@ -826,9 +899,9 @@ function renderFinance(){
   const mRows = Object.keys(byMonth).sort((a,b)=>MONTHS.indexOf(a)-MONTHS.indexOf(b)).map(m=>{
     const mr=byMonth[m];
     const e=sum(mr,'est'), p=sum(mr,'proj'), a=sum(mr,'act');
-    return `<tr><td><b>${m}</b></td><td class="r num">${fmtRp(e)}</td><td class="r num">${fmtRp(p)}</td><td class="r num">${fmtRp(a)}</td>
-      <td class="r num" style="color:${vcol(a-e)}">${fmtRp(a-e)}</td>
-      <td class="r num" style="color:${vcol(a-p)}">${fmtRp(a-p)}</td>
+    return `<tr><td><b>${m}</b></td><td class="r num">${e?fmtRp(e):'<span class="lap-na">belum diisi</span>'}</td><td class="r num">${p?fmtRp(p):'<span class="lap-na">belum ada</span>'}</td><td class="r num">${a?fmtRp(a):'<span class="lap-na">belum terupdate</span>'}</td>
+      <td class="r num">${vCell(a,e)}</td>
+      <td class="r num">${vCell(a,p)}</td>
       <td class="r num">${sum(mr,'contentOutput')}</td><td class="r num">${sum(mr,'taskCount')}</td></tr>`;
   }).join('') || '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">Belum ada data untuk filter ini.</td></tr>';
 
@@ -845,6 +918,32 @@ function renderFinance(){
     `<tr><td><b>${d.month}</b></td><td>${d.brand}</td><td>${d.card}</td><td class="muted">${cleanSub(d.subtask)}</td><td class="dl">${d.deadline||'—'}</td><td class="r num">${fmtRp(d.nominal)}</td></tr>`
   ).join('') || '<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Belum ada nominal di checklist untuk filter ini.</td></tr>';
 
+  // Panel Proyeksi: ringkasan per card (rinci per checklist ada di tabel bawah)
+  const pMap = {};
+  detail.forEach(d=>{ const k=d.brand+'|'+d.card+'|'+d.month;
+    if(!pMap[k]) pMap[k]={brand:d.brand,card:d.card,month:d.month,n:0,total:0};
+    pMap[k].n++; pMap[k].total+=(d.nominal||0); });
+  const pArr = Object.values(pMap).sort((a,b)=>b.total-a.total);
+  const pRows = pArr.map(p=>
+    `<tr><td>${p.card||'—'}</td><td>${p.brand}</td><td><b>${p.month||'—'}</b></td><td class="r">${p.n}</td><td class="r num">${fmtRp(p.total)}</td></tr>`
+  ).join('') || '<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Belum ada nominal di checklist untuk filter ini.</td></tr>';
+  const projPanel = finOpen!=='proj' ? '' : `
+    <div class="section-title">🔎 Rincian Proyeksi — dari card mana saja</div>
+    <div class="muted" style="margin:-4px 0 10px;font-size:12px">Dijumlahkan dari nominal <b>(Rp ...)</b> di item checklist Trello, dihitung di bulan deadline tiap item. Rincian per item ada di tabel <b>Rincian Pengeluaran</b> di bawah.</div>
+    <div class="tablewrap"><table><thead><tr><th>Card / Agenda</th><th>Brand</th><th>Bulan</th><th class="r">Jml Item</th><th class="r">Proyeksi</th></tr></thead><tbody>${pRows}<tr><td colspan="4" class="r"><b>Total</b></td><td class="r num"><b>${fmtRp(pArr.reduce((s,p)=>s+p.total,0))}</b></td></tr></tbody></table></div>`;
+
+  // Panel Aktual: brand/bulan mana yang sudah & belum diisi
+  const aIsi   = flt.filter(r=>(r.act||0)>0).sort((a,b)=>(b.act||0)-(a.act||0));
+  const aKosong= flt.filter(r=>!(r.act||0) && ((r.proj||0)>0||(r.est||0)>0));
+  const aRows = aIsi.map(r=>
+    `<tr><td><b>${r.month}</b></td><td>${r.brand}</td><td class="r num">${fmtRp(r.proj)}</td><td class="r num">${fmtRp(r.act)}</td><td class="r num" style="color:${(r.act-r.proj)>0?'var(--red)':'var(--green4)'}">${r.proj?Math.round(r.act/r.proj*100)+'%':'—'}</td></tr>`
+  ).join('') || '<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Belum ada realisasi tercatat untuk filter ini.</td></tr>';
+  const actPanel = finOpen!=='act' ? '' : `
+    <div class="section-title">🔎 Rincian Budget Aktual — sudah &amp; belum terupdate</div>
+    <div class="muted" style="margin:-4px 0 10px;font-size:12px">Aktual <b>diisi manual</b> di Google Sheets (kolom Budget Aktual), tidak otomatis dari Trello. Karena itu angka kosong berarti <b>belum dicatat</b> — belum tentu belum ada pengeluaran.</div>
+    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th>Brand</th><th class="r">Proyeksi</th><th class="r">Aktual</th><th class="r">Terpakai</th></tr></thead><tbody>${aRows}</tbody></table></div>
+    ${aKosong.length?`<div class="note" style="margin-top:8px;font-size:12px;color:var(--text3)"><b>${aKosong.length} baris punya rencana tapi aktualnya masih kosong:</b> ${aKosong.slice(0,8).map(r=>r.brand+' — '+r.month).join(' · ')}${aKosong.length>8?' …+'+(aKosong.length-8)+' lagi':''}</div>`:''}`;
+
   $('#content').innerHTML = `
     <div class="toolbar">
       <span class="lbl">Brand</span><select id="cBrand">${opt(brandOpts,f.brand)}</select>
@@ -852,21 +951,40 @@ function renderFinance(){
       <span class="lbl">Sampai</span><select id="cTo">${opt(monthOpts,f.to)}</select>
     </div>
     <div class="section-title">📊 Ringkasan ${finData.year}</div>
-    <div class="muted" style="margin:-4px 0 10px;font-size:12px"><b>Estimasi</b> = patokan awal (tetap) · <b>Proyeksi</b> = rencana terkini dari checklist (bisa berubah) · <b>Aktual</b> = realisasi. Estimasi dihitung di bulan card berakhir.</div>
+    <div class="muted" style="margin:-4px 0 10px;font-size:12px">Arahkan ke ikon <span class="info" tabindex="0">i</span> di tiap kartu untuk tahu arti &amp; sumber angkanya · klik kartu untuk lihat rinciannya.</div>
     <div class="brandgrid">${cards}</div>
-    ${estPanel}
+    ${estPanel}${projPanel}${actPanel}
     <div class="section-title">🏢 Per Brand</div>
-    <div class="tablewrap"><table><thead><tr><th>Brand</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Var vs Est</th><th class="r">Var vs Proy</th><th class="r">Content</th><th class="r">Task</th><th class="r">Overdue</th></tr></thead><tbody>${bRows}</tbody></table></div>
+    <div class="tablewrap"><table><thead><tr><th>Brand</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Selisih vs Est.</th><th class="r">Selisih vs Proy.</th><th class="r">Content</th><th class="r">Task</th><th class="r">Overdue</th></tr></thead><tbody>${bRows}</tbody></table></div>
     <div class="section-title">🧾 Rincian Pengeluaran (Proyeksi Checklist)</div>
     <div class="tablewrap"><table><thead><tr><th>Bulan</th><th>Brand</th><th id="thFinCard" style="cursor:pointer;user-select:none">Task / Card <span style="opacity:.6">${finCardArrow}</span></th><th>Checklist</th><th>Tanggal</th><th class="r">Nominal</th></tr></thead><tbody>${dRows}<tr><td colspan="5" class="r"><b>Total</b></td><td class="r num"><b>${fmtRp(detailTotal)}</b></td></tr></tbody></table></div>
     <div class="section-title">📅 Per Bulan</div>
-    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Var vs Est</th><th class="r">Var vs Proy</th><th class="r">Content</th><th class="r">Task</th></tr></thead><tbody>${mRows}</tbody></table></div>`;
+    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Budget Est.</th><th class="r">Proyeksi</th><th class="r">Budget Aktual</th><th class="r">Selisih vs Est.</th><th class="r">Selisih vs Proy.</th><th class="r">Content</th><th class="r">Task</th></tr></thead><tbody>${mRows}</tbody></table></div>`;
   $('#cBrand').onchange=e=>{f.brand=e.target.value;renderFinance();};
   $('#cFrom').onchange=e=>{f.from=e.target.value;renderFinance();};
   $('#cTo').onchange=e=>{f.to=e.target.value;renderFinance();};
   $('#thFinCard').onclick=()=>{ finCardSort = finCardSort===1 ? -1 : (finCardSort===-1 ? 0 : 1); renderFinance(); };
-  $('#estCard').onclick=()=>{ estOpen = !estOpen; renderFinance(); };
+  // Klik kartu = buka/tutup panel rinciannya (satu panel terbuka pada satu waktu)
+  ['est','proj','act'].forEach(id=>{
+    const el=$('#fin-'+id); if(!el) return;
+    el.onclick=()=>{ finOpen = finOpen===id ? '' : id; renderFinance(); };
+  });
+  posisiTooltip();
 }
+
+// Tooltip ⓘ default keluar di tengah-atas ikon. Kalau ikonnya mepet tepi layar,
+// itu bikin halaman bisa di-scroll ke samping — jadi arahnya dibalik.
+function posisiTooltip(scope){
+  const vw = document.documentElement.clientWidth || window.innerWidth;
+  (scope||document).querySelectorAll('.info .tip').forEach(t=>{
+    t.classList.remove('ki','ka');
+    const ic = t.parentElement.getBoundingClientRect();
+    const w  = t.offsetWidth || 235;
+    if(ic.left + ic.width/2 + w/2 > vw - 8)     t.classList.add('ki');
+    else if(ic.left + ic.width/2 - w/2 < 8)     t.classList.add('ka');
+  });
+}
+window.addEventListener('resize', ()=>posisiTooltip());
 
 /* ===== MARKETING (rich, filter brand + bulan) ===== */
 function renderMarketing(){
