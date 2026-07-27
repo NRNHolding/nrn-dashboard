@@ -84,6 +84,21 @@ td.r,th.r{text-align:right}
 .ins-col code{font-family:'DM Mono',monospace;font-size:11px;background:rgba(0,0,0,.06);padding:1px 4px;border-radius:3px}
 .ins-empty{font-size:12px;color:var(--text3)}
 .ins-foot{margin-top:11px;font-size:11.5px;color:var(--text3);line-height:1.5}
+/* Timeline start–end agenda */
+.calbar{display:flex;align-items:center;justify-content:center;gap:14px;margin:10px 0}
+.calmon{font-weight:700;font-size:14px}
+.agtl{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+.agtl-days{display:grid;grid-template-columns:180px 1fr;gap:8px;align-items:end;font-size:9px;color:var(--text3)}
+.agtl-scale{position:relative;height:14px}
+.agtl-scale span{position:absolute;transform:translateX(-50%);font-family:'DM Mono',monospace}
+.agtl-row{display:grid;grid-template-columns:180px 1fr;gap:8px;align-items:center}
+.agtl-name{font-size:11.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agtl-name small{display:block;font-weight:400;color:var(--text3);font-size:10px}
+.agtl-track{position:relative;height:24px;background:var(--cream);border:1px solid var(--cream2);border-radius:6px;overflow:hidden}
+.agtl-grid{position:absolute;top:0;bottom:0;border-left:1px solid var(--cream2)}
+.agtl-bar{position:absolute;top:3px;height:18px;border-radius:5px;background:var(--green4);color:#fff;font-size:9.5px;line-height:18px;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.agtl-bar.prog{background:var(--amber)}.agtl-bar.plan{background:#1d4e6f}.agtl-bar.done{opacity:.55}
+.agtl-empty{font-size:12px;color:var(--text3);padding:16px;text-align:center}
 /* Laporan (layar) */
 .lap-na{font-size:12px;color:var(--text3);font-style:italic;font-weight:400}
 tr.lap-od td{background:#fdf0f0}
@@ -180,8 +195,8 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyxK1M5xtaXSUO2
 const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
 const TABS = [
-  { id:'agenda',    label:'📌 Agenda Accomplishment', type:'agenda' },
-  { id:'inquiry',   label:'📋 Inquiry',              type:'inquiry' },
+  { id:'agenda',    label:'📌 Agenda Overview',      type:'agenda' },
+  { id:'inquiry',   label:'📋 Sales Report',         type:'inquiry' },
   { id:'finance',   label:'💰 Agenda (Finance)',     type:'finance' },
   { id:'marketing', label:'📊 Marketing (Socmed KPI)', type:'marketing' },
   { id:'agency',    label:'🏢 Agency',               type:'agency' },
@@ -321,6 +336,8 @@ function statusPill(st){
 function sisaCls(n){ if(n===null) return ''; if(n<=3) return 'red'; if(n<=7) return 'amber'; return 'green'; }
 let agendaSort = 0; // 0=off, 1=asc, -1=desc (kolom Card/Agenda)
 
+let agView='list';           // 'list' | 'timeline'
+let agTlYear, agTlMonth;     // bulan yang ditampilkan di timeline
 function renderAgenda(){
   const D = agendaData, f = agendaFilt;
   const cards = D.summary.map(b => `
@@ -356,15 +373,59 @@ function renderAgenda(){
       <span class="lbl">Brand</span><select id="fBrand">${opt(brandOpts,f.brand)}</select>
       <span class="lbl">Bulan</span><select id="fBulan">${opt(bulanSet,f.bulan)}</select>
       <span class="lbl">Status</span><select id="fStatus">${opt(statusOpts,f.status)}</select>
-      <span class="tag">${rows.length} / ${D.detail.length} milestone</span>
+      <span style="flex:1"></span>
+      <button class="tab ${agView==='list'?'on':''}" id="agTabList">📋 List</button>
+      <button class="tab ${agView==='timeline'?'on':''}" id="agTabTl">📊 Timeline</button>
     </div>
-    <div class="tablewrap"><table>
+    ${agView==='timeline'
+      ? renderAgendaTimelineBOD(rows)
+      : `<div class="tablewrap"><table>
       <thead><tr><th>Brand</th><th id="thCard" style="cursor:pointer;user-select:none">Card / Agenda <span style="opacity:.6">${sortArrow}</span></th><th>Subtask</th><th>Bulan</th><th>Deadline</th><th>Sisa Hari</th><th>Status</th><th>PIC</th></tr></thead>
-      <tbody>${tb}</tbody></table></div>`;
+      <tbody>${tb}</tbody></table></div>`}`;
   $('#fBrand').onchange=e=>{f.brand=e.target.value;renderAgenda();};
   $('#fBulan').onchange=e=>{f.bulan=e.target.value;renderAgenda();};
   $('#fStatus').onchange=e=>{f.status=e.target.value;renderAgenda();};
-  $('#thCard').onclick=()=>{ agendaSort = agendaSort===1 ? -1 : (agendaSort===-1 ? 0 : 1); renderAgenda(); };
+  $('#agTabList').onclick=()=>{agView='list';renderAgenda();};
+  $('#agTabTl').onclick=()=>{agView='timeline';renderAgenda();};
+  if($('#thCard')) $('#thCard').onclick=()=>{ agendaSort = agendaSort===1 ? -1 : (agendaSort===-1 ? 0 : 1); renderAgenda(); };
+  if(agView==='timeline'){
+    if($('#agTlPrev')) $('#agTlPrev').onclick=()=>{ agTlMonth--; if(agTlMonth<0){agTlMonth=11;agTlYear--;} renderAgenda(); };
+    if($('#agTlNext')) $('#agTlNext').onclick=()=>{ agTlMonth++; if(agTlMonth>11){agTlMonth=0;agTlYear++;} renderAgenda(); };
+  }
+}
+/* Timeline start–end (BOD): rentang per card dari deadlineSort tiap item.
+   rows = detail yang SUDAH difilter brand/bulan/status. */
+function renderAgendaTimelineBOD(rows){
+  const now=new Date();
+  if(agTlYear===undefined){ agTlYear=now.getFullYear(); agTlMonth=now.getMonth(); }
+  const dim=new Date(agTlYear,agTlMonth+1,0).getDate();
+  const cards={};
+  rows.forEach(x=>{
+    if(!x.deadlineSort) return;
+    const d=new Date(x.deadlineSort);
+    if(d.getFullYear()!==agTlYear||d.getMonth()!==agTlMonth) return;
+    const day=d.getDate();
+    const key=x.brand+'|'+x.card;
+    const c=(cards[key]=cards[key]||{brand:x.brand,card:x.card,min:day,max:day,items:0,done:0,pic:x.pic});
+    c.min=Math.min(c.min,day); c.max=Math.max(c.max,day); c.items++;
+    if(statusLabel(x.status)==='Done') c.done++;
+  });
+  const arr=Object.keys(cards).map(k=>cards[k]).sort((a,b)=>a.min-b.min||a.max-b.max);
+  const bar=`<div class="calbar"><button class="iconbtn" id="agTlPrev">←</button><span class="calmon">${MONTHS[agTlMonth]} ${agTlYear}</span><button class="iconbtn" id="agTlNext">→</button></div>`;
+  if(!arr.length) return bar+'<div class="agtl-empty">Tidak ada agenda dengan tanggal di bulan ini (untuk filter aktif).</div>';
+  const ticks=[]; for(let d=1;d<=dim;d+=5){ ticks.push(`<span style="left:${((d-0.5)/dim*100).toFixed(2)}%">${d}</span>`); }
+  ticks.push(`<span style="left:${((dim-0.5)/dim*100).toFixed(2)}%">${dim}</span>`);
+  const grids=[]; for(let d=1;d<dim;d++){ grids.push(`<div class="agtl-grid" style="left:${(d/dim*100).toFixed(2)}%"></div>`); }
+  const mon3=MONTHS[agTlMonth].slice(0,3);
+  const rowsHtml=arr.map(c=>{
+    const left=((c.min-1)/dim*100), width=Math.max(((c.max-c.min+1)/dim*100),3);
+    const cls=c.done===c.items?'done':(c.done>0?'prog':'plan');
+    const rentang=c.min===c.max?`${c.min} ${mon3}`:`${c.min}–${c.max} ${mon3}`;
+    return `<div class="agtl-row"><div class="agtl-name">${insEsc(c.card)||'—'}<small>${insEsc(c.brand)} · ${c.done}/${c.items} item</small></div>
+      <div class="agtl-track">${grids.join('')}<div class="agtl-bar ${cls}" style="left:${left.toFixed(2)}%;width:${width.toFixed(2)}%" title="${insEsc(c.brand)} — ${insEsc(c.card)} · ${rentang}">${rentang}</div></div></div>`;
+  }).join('');
+  return bar+`<div class="agtl"><div class="agtl-days"><div></div><div class="agtl-scale">${ticks.join('')}</div></div>${rowsHtml}</div>
+    <div class="ins-foot">Bar = rentang item checklist paling awal → paling akhir di bulan ini. <b style="color:var(--green4)">Hijau</b>=selesai · <b style="color:var(--amber)">kuning</b>=berjalan · <b style="color:#1d4e6f">biru</b>=belum mulai. Filter Brand/Status di atas tetap berlaku.</div>`;
 }
 
 /* ══════════ CETAK LAPORAN (dokumen, bukan jiplakan layar) ══════════
