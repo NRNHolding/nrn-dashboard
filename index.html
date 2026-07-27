@@ -845,9 +845,15 @@ function inqKey(s){
 const INQ_LABEL={quotation:'📝 Quotation',sampling:'🔬 On going sampling',deal:'✅ Deal',cancel:'❌ Cancel'};
 const INQ_CLASS={quotation:'wait',sampling:'sampling',deal:'deal',cancel:'cancel'};
 function inqPill(st){ const k=inqKey(st); return '<span class="pill '+INQ_CLASS[k]+'">'+INQ_LABEL[k]+'</span>'; }
+// Bulan (0-11) dari timestamp 'dd MMM yyyy' & dari nama bulan Indonesia
+const MMM3={jan:0,feb:1,mar:2,apr:3,may:4,mei:4,jun:5,jul:6,aug:7,agu:7,sep:8,oct:9,okt:9,nov:10,dec:11,des:11};
+function tsMonthIdx(ts){ const m=String(ts||'').match(/\b([A-Za-z]{3,})\b/); return m?(MMM3[m[1].slice(0,3).toLowerCase()]??-1):-1; }
+function idMonthIdx(name){ return MONTHS.indexOf(String(name||'').trim()); }
+let salesTgtMonth = MONTHS[new Date().getMonth()];
 function renderInquiry(){
   const D = inqData.detail, f = inqFilt;
-  const BR = ['Revolt Industry','Radja Leather','Rove Gifts','Winddam ID'];
+  const TG = inqData.targets || [];
+  const BR = ['Revolt Industry','Radja Leather','Rove Gifts','Rove AU','Winddam ID'];
   // summary per brand
   const cards = BR.map(b=>{
     const rows = D.filter(d=>d.brand===b);
@@ -877,8 +883,35 @@ function renderInquiry(){
     <td>${d.tglQuotation||'—'}</td><td>${d.tglSampling||'—'}</td><td>${d.tglDeal||'—'}</td><td>${d.tglCancel||'—'}</td>
     <td class="muted">${d.alasanCancel||'—'}</td><td class="muted">${d.salesPic||'—'}</td></tr>`).join('')
     : '<tr><td colspan="13" class="muted" style="text-align:center;padding:24px">Tidak ada data.</td></tr>';
+  // ── Target vs Tercapai (per bulan terpilih) ──
+  const tgMi = idMonthIdx(salesTgtMonth);
+  const tgRows = BR.map(b=>{
+    const t = TG.find(x=>x.brand===b && idMonthIdx(x.month)===tgMi) || {nominal:0,deal:0};
+    const dealsMo = D.filter(d=>d.brand===b && inqKey(d.status)==='deal' && tsMonthIdx(d.timestamp)===tgMi);
+    const gotNom = dealsMo.reduce((s,d)=>s+(d.nominal||0),0), gotDeal = dealsMo.length;
+    if(!t.nominal && !t.deal && !gotNom && !gotDeal) return '';
+    const barN = t.nominal ? Math.min(Math.round(gotNom/t.nominal*100),100) : 0;
+    const barD = t.deal    ? Math.min(Math.round(gotDeal/t.deal*100),100) : 0;
+    const pillN = t.nominal ? `${Math.round(gotNom/t.nominal*100)}%` : '—';
+    const pillD = t.deal    ? `${Math.round(gotDeal/t.deal*100)}%` : '—';
+    return `<div class="bcard"><h3>${b}</h3>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:2px">Nilai deal</div>
+      <div class="num" style="font-size:14px;font-weight:700">${fmtRp(gotNom)} <span style="color:var(--text3);font-weight:400">/ ${t.nominal?fmtRp(t.nominal):'—'}</span></div>
+      <div class="bar"><i class="${barN>=100?'':'low'}" style="width:${barN}%"></i></div>
+      <div class="vsub muted">${pillN} dari target nilai</div>
+      <div style="font-size:11px;color:var(--text3);margin:6px 0 2px">Jumlah deal</div>
+      <div class="num" style="font-size:14px;font-weight:700">${gotDeal} <span style="color:var(--text3);font-weight:400">/ ${t.deal||'—'}</span></div>
+      <div class="bar"><i class="${barD>=100?'':'low'}" style="width:${barD}%"></i></div>
+      <div class="vsub muted">${pillD} dari target jumlah</div></div>`;
+  }).filter(Boolean).join('') || '<div class="muted" style="padding:16px">Belum ada target untuk bulan ini. Isi sheet 🎯 Sales Target.</div>';
+  const tgOpt = MONTHS.map(m=>`<option ${m===salesTgtMonth?'selected':''}>${m}</option>`).join('');
+
   $('#content').innerHTML = `
-    <div class="section-title">📊 Summary Inquiry</div>
+    <div class="section-title">🎯 Target vs Tercapai</div>
+    <div class="toolbar"><span class="lbl">Bulan</span><select id="tgMonth">${tgOpt}</select>
+      <span class="tag">deal dihitung dari tanggal inquiry masuk</span></div>
+    <div class="brandgrid">${tgRows}</div>
+    <div class="section-title">📊 Summary Inquiry <span class="muted" style="font-size:12px;font-weight:400">(semua waktu)</span></div>
     <div class="brandgrid">${cards}</div>
     <div class="section-title">📑 Detail Inquiry</div>
     <div class="toolbar">
@@ -892,6 +925,7 @@ function renderInquiry(){
     <div class="note" style="margin-top:10px;font-size:12px;color:var(--text3)">Tanggal tiap tahap diisi otomatis oleh sistem saat status pertama kali masuk tahap tersebut, lalu tidak berubah lagi (jejak timeline).</div>`;
   $('#iBrand').onchange=e=>{f.brand=e.target.value;renderInquiry();};
   $('#iStatus').onchange=e=>{f.status=e.target.value;renderInquiry();};
+  if($('#tgMonth')) $('#tgMonth').onchange=e=>{salesTgtMonth=e.target.value;renderInquiry();};
 }
 
 /* ===== FINANCE (rich, filter brand + range bulan) ===== */
@@ -1137,12 +1171,12 @@ function renderFinance(){
   const aIsi   = flt.filter(r=>(r.act||0)>0).sort((a,b)=>(b.act||0)-(a.act||0));
   const aKosong= flt.filter(r=>!(r.act||0) && ((r.proj||0)>0||(r.est||0)>0));
   const aRows = aIsi.map(r=>
-    `<tr><td><b>${r.month}</b></td><td>${r.brand}</td><td class="r num">${fmtRp(r.proj)}</td><td class="r num">${fmtRp(r.act)}</td><td class="r num" style="color:${(r.act-r.proj)>0?'var(--red)':'var(--green4)'}">${r.proj?Math.round(r.act/r.proj*100)+'%':'—'}</td></tr>`
-  ).join('') || '<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Belum ada realisasi tercatat untuk filter ini.</td></tr>';
+    `<tr><td><b>${r.month}</b></td><td>${r.brand}</td><td class="r num">${fmtRp(r.proj)}</td><td class="r num">${fmtRp(r.act)}</td><td class="r num" style="color:${(r.act-r.proj)>0?'var(--red)':'var(--green4)'}">${r.proj?Math.round(r.act/r.proj*100)+'%':'—'}</td><td class="muted" style="font-size:11px">${r.budgetUpdatedAt||'—'}</td></tr>`
+  ).join('') || '<tr><td colspan="6" class="muted" style="text-align:center;padding:20px">Belum ada realisasi tercatat untuk filter ini.</td></tr>';
   const actPanel = finOpen!=='act' ? '' : `
     <div class="section-title">🔎 Rincian Budget Aktual — sudah &amp; belum terupdate</div>
-    <div class="muted" style="margin:-4px 0 10px;font-size:12px">Aktual <b>diisi manual</b> di Google Sheets (kolom Budget Aktual), tidak otomatis dari Trello. Karena itu angka kosong berarti <b>belum dicatat</b> — belum tentu belum ada pengeluaran.</div>
-    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th>Brand</th><th class="r">Proyeksi</th><th class="r">Aktual</th><th class="r">Terpakai</th></tr></thead><tbody>${aRows}</tbody></table></div>
+    <div class="muted" style="margin:-4px 0 10px;font-size:12px">Aktual <b>diisi manual</b> di Google Sheets (kolom Budget Aktual), tidak otomatis dari Trello. Karena itu angka kosong berarti <b>belum dicatat</b> — belum tentu belum ada pengeluaran. Kolom <b>Terakhir Diubah</b> = kapan est/proyeksi/aktual bulan itu terakhir berubah saat sync.</div>
+    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th>Brand</th><th class="r">Proyeksi</th><th class="r">Aktual</th><th class="r">Terpakai</th><th>Terakhir Diubah</th></tr></thead><tbody>${aRows}</tbody></table></div>
     ${aKosong.length?`<div class="note" style="margin-top:8px;font-size:12px;color:var(--text3)"><b>${aKosong.length} baris punya rencana tapi aktualnya masih kosong:</b> ${aKosong.slice(0,8).map(r=>r.brand+' — '+r.month).join(' · ')}${aKosong.length>8?' …+'+(aKosong.length-8)+' lagi':''}</div>`:''}`;
 
   $('#content').innerHTML = `
@@ -1263,10 +1297,19 @@ function renderAgency(){
   const opt=(arr,sel)=>arr.map(v=>`<option ${v===sel?'selected':''}>${v}</option>`).join('');
   const brandOpts=['(Semua)'].concat(BR), monthOpts=['(Semua)'].concat(MONTHS);
 
+  // Holding fee (nominal tetap per agency/bulan) — filter ikut bulan yg dipilih
+  const HF=(finData.holdingFee||[]).filter(x=> f.bulan==='(Semua)'||x.month===f.bulan );
+  const feeBy=a=>HF.filter(x=>x.agency===a).reduce((s,x)=>s+(x.fee||0),0);
+  const feeTenshi=feeBy('Tenshi Studio'), feeAkronim=feeBy('Akronim'), feeTotal=HF.reduce((s,x)=>s+(x.fee||0),0);
+  const periode = f.bulan==='(Semua)' ? 'setahun' : f.bulan;
+
   const cards=`
     <div class="bcard"><h3>🎬 Tenshi Studio (Foto + Video)</h3><div class="big">${fmtNum(foto+video)}</div>
-      <div class="statrow" style="margin-top:6px"><span class="chip month">📷 ${fmtNum(foto)} Foto</span><span class="chip prog">🎥 ${fmtNum(video)} Video</span></div></div>
-    <div class="bcard"><h3>🎨 Akronim (Design)</h3><div class="big">${fmtNum(design)}</div><div class="biglbl">Design Output</div></div>`;
+      <div class="statrow" style="margin-top:6px"><span class="chip month">📷 ${fmtNum(foto)} Foto</span><span class="chip prog">🎥 ${fmtNum(video)} Video</span></div>
+      <div class="biglbl" style="margin-top:6px">Holding fee ${periode}: <b>${feeTenshi?fmtRp(feeTenshi):'—'}</b></div></div>
+    <div class="bcard"><h3>🎨 Akronim (Design)</h3><div class="big">${fmtNum(design)}</div><div class="biglbl">Design Output</div>
+      <div class="biglbl" style="margin-top:6px">Holding fee ${periode}: <b>${feeAkronim?fmtRp(feeAkronim):'—'}</b></div></div>
+    <div class="bcard"><h3>💵 Total Holding Fee</h3><div class="big" style="font-size:19px">${feeTotal?fmtRp(feeTotal):'<span class="lap-na">belum diisi</span>'}</div><div class="biglbl">${periode}</div></div>`;
 
   const brandsToShow = f.brand==='(Semua)' ? BR : [f.brand];
   const bRows = brandsToShow.map(b=>{
@@ -1282,6 +1325,15 @@ function renderAgency(){
     return `<tr><td><b>${m}</b></td><td class="r num">${fmtNum(p)}</td><td class="r num">${fmtNum(v)}</td><td class="r num">${fmtNum(p+v)}</td><td class="r num">${fmtNum(d)}</td></tr>`;
   }).join('') || '<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Belum ada data untuk filter ini.</td></tr>';
 
+  // Holding fee per bulan (semua agency, tak terpengaruh filter bulan — tabel lengkap)
+  const allHF=finData.holdingFee||[];
+  const feeMonths=[...new Set(allHF.map(x=>x.month))].sort((a,b)=>MONTHS.indexOf(a)-MONTHS.indexOf(b));
+  const feeMRows=feeMonths.map(m=>{
+    const t=allHF.filter(x=>x.agency==='Tenshi Studio'&&x.month===m).reduce((s,x)=>s+(x.fee||0),0);
+    const a=allHF.filter(x=>x.agency==='Akronim'&&x.month===m).reduce((s,x)=>s+(x.fee||0),0);
+    return `<tr><td><b>${m}</b></td><td class="r num">${t?fmtRp(t):'—'}</td><td class="r num">${a?fmtRp(a):'—'}</td><td class="r num">${fmtRp(t+a)}</td></tr>`;
+  }).join('')||'<tr><td colspan="4" class="muted" style="text-align:center;padding:16px">Belum ada holding fee. Isi sheet 🏢 Holding Fee.</td></tr>';
+
   $('#content').innerHTML=`
     <div class="toolbar">
       <span class="lbl">Brand</span><select id="aBrand">${opt(brandOpts,f.brand)}</select>
@@ -1293,7 +1345,10 @@ function renderAgency(){
     <div class="section-title">🏢 Per Brand</div>
     <div class="tablewrap"><table><thead><tr><th>Brand</th><th class="r">Foto</th><th class="r">Video</th><th class="r">Tenshi (F+V)</th><th class="r">Design (Akronim)</th></tr></thead><tbody>${bRows}</tbody></table></div>
     <div class="section-title">📅 Per Bulan</div>
-    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Foto</th><th class="r">Video</th><th class="r">Tenshi (F+V)</th><th class="r">Design (Akronim)</th></tr></thead><tbody>${mRows}</tbody></table></div>`;
+    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Foto</th><th class="r">Video</th><th class="r">Tenshi (F+V)</th><th class="r">Design (Akronim)</th></tr></thead><tbody>${mRows}</tbody></table></div>
+    <div class="section-title">💵 Holding Fee per Bulan</div>
+    <div class="muted" style="margin:-4px 0 10px;font-size:12px">Nominal tetap per bulan, diisi di sheet <b>🏢 Holding Fee</b>. Independen dari jumlah output agency.</div>
+    <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Tenshi Studio</th><th class="r">Akronim</th><th class="r">Total</th></tr></thead><tbody>${feeMRows}</tbody></table></div>`;
   $('#aBrand').onchange=e=>{f.brand=e.target.value;renderAgency();};
   $('#aBulan').onchange=e=>{f.bulan=e.target.value;renderAgency();};
 }
