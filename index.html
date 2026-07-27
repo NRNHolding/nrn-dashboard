@@ -338,6 +338,7 @@ let agendaSort = 0; // 0=off, 1=asc, -1=desc (kolom Card/Agenda)
 
 let agView='list';           // 'list' | 'timeline'
 let agTlYear, agTlMonth;     // bulan yang ditampilkan di timeline
+let agTlScope='month';       // 'month' | 'year'
 function renderAgenda(){
   const D = agendaData, f = agendaFilt;
   const cards = D.summary.map(b => `
@@ -389,23 +390,35 @@ function renderAgenda(){
   $('#agTabTl').onclick=()=>{agView='timeline';renderAgenda();};
   if($('#thCard')) $('#thCard').onclick=()=>{ agendaSort = agendaSort===1 ? -1 : (agendaSort===-1 ? 0 : 1); renderAgenda(); };
   if(agView==='timeline'){
+    if($('#agScMonth')) $('#agScMonth').onclick=()=>{ agTlScope='month'; renderAgenda(); };
+    if($('#agScYear'))  $('#agScYear').onclick =()=>{ agTlScope='year';  renderAgenda(); };
     if($('#agTlPrev')) $('#agTlPrev').onclick=()=>{ agTlMonth--; if(agTlMonth<0){agTlMonth=11;agTlYear--;} renderAgenda(); };
     if($('#agTlNext')) $('#agTlNext').onclick=()=>{ agTlMonth++; if(agTlMonth>11){agTlMonth=0;agTlYear++;} renderAgenda(); };
+    if($('#agYrPrev')) $('#agYrPrev').onclick=()=>{ agTlYear--; renderAgenda(); };
+    if($('#agYrNext')) $('#agYrNext').onclick=()=>{ agTlYear++; renderAgenda(); };
   }
+}
+const AG_MON3_BOD=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+function agScopeTabsBOD(){
+  return `<div class="toolbar" style="margin-bottom:6px">
+    <button class="tab ${agTlScope==='month'?'on':''}" id="agScMonth">📅 Per Bulan</button>
+    <button class="tab ${agTlScope==='year'?'on':''}" id="agScYear">📆 Setahun Penuh</button></div>`;
 }
 /* Timeline start–end (BOD): rentang per card dari deadlineSort tiap item.
    rows = detail yang SUDAH difilter brand/bulan/status. */
 function renderAgendaTimelineBOD(rows){
   const now=new Date();
   if(agTlYear===undefined){ agTlYear=now.getFullYear(); agTlMonth=now.getMonth(); }
+  return agScopeTabsBOD() + (agTlScope==='year' ? agTlYearBOD(rows) : agTlMonthBOD(rows));
+}
+function agTlMonthBOD(rows){
   const dim=new Date(agTlYear,agTlMonth+1,0).getDate();
   const cards={};
   rows.forEach(x=>{
     if(!x.deadlineSort) return;
     const d=new Date(x.deadlineSort);
     if(d.getFullYear()!==agTlYear||d.getMonth()!==agTlMonth) return;
-    const day=d.getDate();
-    const key=x.brand+'|'+x.card;
+    const day=d.getDate(), key=x.brand+'|'+x.card;
     const c=(cards[key]=cards[key]||{brand:x.brand,card:x.card,min:day,max:day,items:0,done:0,pic:x.pic});
     c.min=Math.min(c.min,day); c.max=Math.max(c.max,day); c.items++;
     if(statusLabel(x.status)==='Done') c.done++;
@@ -416,7 +429,7 @@ function renderAgendaTimelineBOD(rows){
   const ticks=[]; for(let d=1;d<=dim;d+=5){ ticks.push(`<span style="left:${((d-0.5)/dim*100).toFixed(2)}%">${d}</span>`); }
   ticks.push(`<span style="left:${((dim-0.5)/dim*100).toFixed(2)}%">${dim}</span>`);
   const grids=[]; for(let d=1;d<dim;d++){ grids.push(`<div class="agtl-grid" style="left:${(d/dim*100).toFixed(2)}%"></div>`); }
-  const mon3=MONTHS[agTlMonth].slice(0,3);
+  const mon3=AG_MON3_BOD[agTlMonth];
   const rowsHtml=arr.map(c=>{
     const left=((c.min-1)/dim*100), width=Math.max(((c.max-c.min+1)/dim*100),3);
     const cls=c.done===c.items?'done':(c.done>0?'prog':'plan');
@@ -425,7 +438,36 @@ function renderAgendaTimelineBOD(rows){
       <div class="agtl-track">${grids.join('')}<div class="agtl-bar ${cls}" style="left:${left.toFixed(2)}%;width:${width.toFixed(2)}%" title="${insEsc(c.brand)} — ${insEsc(c.card)} · ${rentang}">${rentang}</div></div></div>`;
   }).join('');
   return bar+`<div class="agtl"><div class="agtl-days"><div></div><div class="agtl-scale">${ticks.join('')}</div></div>${rowsHtml}</div>
-    <div class="ins-foot">Bar = rentang item checklist paling awal → paling akhir di bulan ini. <b style="color:var(--green4)">Hijau</b>=selesai · <b style="color:var(--amber)">kuning</b>=berjalan · <b style="color:#1d4e6f">biru</b>=belum mulai. Filter Brand/Status di atas tetap berlaku.</div>`;
+    <div class="ins-foot">Bar = rentang item paling awal→akhir di bulan ini. <b style="color:var(--green4)">Hijau</b>=selesai · <b style="color:var(--amber)">kuning</b>=berjalan · <b style="color:#1d4e6f">biru</b>=belum mulai. Filter di atas tetap berlaku.</div>`;
+}
+function agTlYearBOD(rows){
+  const y=agTlYear;
+  const total=((y%4===0&&y%100!==0)||y%400===0)?366:365;
+  const doy=(Y,M,D)=>Math.round((Date.UTC(Y,M-1,D)-Date.UTC(y,0,1))/86400000)+1;
+  const cards={};
+  rows.forEach(x=>{
+    if(!x.deadlineSort) return;
+    const d=new Date(x.deadlineSort); if(d.getFullYear()!==y) return;
+    const M=d.getMonth()+1, D=d.getDate(), n=doy(y,M,D), key=x.brand+'|'+x.card;
+    const c=(cards[key]=cards[key]||{brand:x.brand,card:x.card,min:n,max:n,minMD:[M,D],maxMD:[M,D],items:0,done:0});
+    if(n<c.min){c.min=n;c.minMD=[M,D];} if(n>c.max){c.max=n;c.maxMD=[M,D];} c.items++;
+    if(statusLabel(x.status)==='Done') c.done++;
+  });
+  const arr=Object.keys(cards).map(k=>cards[k]).sort((a,b)=>a.min-b.min||a.max-b.max);
+  const bar=`<div class="calbar"><button class="iconbtn" id="agYrPrev">←</button><span class="calmon">Tahun ${y}</span><button class="iconbtn" id="agYrNext">→</button></div>`;
+  if(!arr.length) return bar+`<div class="agtl-empty">Tidak ada agenda dengan tanggal di tahun ${y} (untuk filter aktif).</div>`;
+  const labels=AG_MON3_BOD.map((m,i)=>`<span style="left:${((doy(y,i+1,15)-0.5)/total*100).toFixed(2)}%">${m}</span>`).join('');
+  const grids=AG_MON3_BOD.map((m,i)=> i===0?'':`<div class="agtl-grid" style="left:${((doy(y,i+1,1)-1)/total*100).toFixed(2)}%"></div>`).join('');
+  const md=a=>`${a[1]} ${AG_MON3_BOD[a[0]-1]}`;
+  const rowsHtml=arr.map(c=>{
+    const left=((c.min-1)/total*100), width=Math.max(((c.max-c.min+1)/total*100),1.5);
+    const cls=c.done===c.items?'done':(c.done>0?'prog':'plan');
+    const rentang=c.min===c.max?md(c.minMD):`${md(c.minMD)} – ${md(c.maxMD)}`;
+    return `<div class="agtl-row"><div class="agtl-name">${insEsc(c.card)||'—'}<small>${insEsc(c.brand)} · ${rentang}</small></div>
+      <div class="agtl-track">${grids}<div class="agtl-bar ${cls}" style="left:${left.toFixed(2)}%;width:${width.toFixed(2)}%" title="${insEsc(c.brand)} — ${insEsc(c.card)} · ${rentang}"></div></div></div>`;
+  }).join('');
+  return bar+`<div class="agtl"><div class="agtl-days"><div></div><div class="agtl-scale">${labels}</div></div>${rowsHtml}</div>
+    <div class="ins-foot">Satu tahun penuh — bar = rentang card, tertulis di bawah nama. <b style="color:var(--green4)">Hijau</b>=selesai · <b style="color:var(--amber)">kuning</b>=berjalan · <b style="color:#1d4e6f">biru</b>=belum mulai. Filter di atas tetap berlaku.</div>`;
 }
 
 /* ══════════ CETAK LAPORAN (dokumen, bukan jiplakan layar) ══════════
