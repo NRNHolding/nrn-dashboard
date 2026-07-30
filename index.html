@@ -875,6 +875,53 @@ function insightHtml(D){
     'Dirangkum otomatis dari Agenda, Sosmed, Inquiry &amp; Anggaran di atas, memakai ambang tetap — <b>bukan pengganti</b> Analisa Kualitatif. Sifatnya indikatif; keputusan tetap di brand.'
   );
 }
+/* ══════════ SARAN SOSMED (rule-based, per brand) ══════════
+   cur/prev = objek metrik teragregasi {reach,views,likes,comments,shares,saves,follows,er,posts}.
+   Blok identik di nrn-dashboard & nrn-inquiry-form — ubah di dua-duanya. */
+function sosmedAdvice(cur, prev){
+  const S=[], W=[], A=[]; const put=(g,t)=>g.push({scope:'Sosmed',txt:t});
+  const pct=(a,b)=>b?((a-b)/b*100):0;
+  if(!cur.reach && !cur.views && !cur.posts){ put(A,'Belum ada data sosmed bulan ini dari Windsor untuk brand ini.'); return {sudah:S,perhatian:W,aksi:A}; }
+  // Jangkauan
+  if(prev && prev.reach){
+    const rd=pct(cur.reach,prev.reach);
+    if(rd<=-INS.reachDrop) put(A,`<b>Jangkauan turun ${Math.abs(Math.round(rd))}%</b> (${fmtNum(prev.reach)}→${fmtNum(cur.reach)} orang) — cek frekuensi & jenis konten.`);
+    else if(rd<0) put(W,`Jangkauan turun tipis ${Math.abs(Math.round(rd))}% vs bulan lalu.`);
+    else put(S,`Jangkauan naik ${Math.round(rd)}% (${fmtNum(prev.reach)}→${fmtNum(cur.reach)} orang).`);
+  } else if(cur.reach) put(S,`Jangkauan ${fmtNum(cur.reach)} orang.`);
+  // ER
+  if(cur.er){
+    if(cur.er<INS.erLow) put(A,`Engagement rate ${cur.er.toFixed(2)}% di bawah batas sehat ${INS.erLow}% — konten dilihat tapi tak memicu interaksi.`);
+    else if(cur.er>=INS.erGood) put(S,`Engagement rate ${cur.er.toFixed(2)}% sehat (>${INS.erGood}%).`);
+    else put(W,`Engagement rate ${cur.er.toFixed(2)}% wajar tapi belum kuat (target >${INS.erGood}%).`);
+  }
+  // Kualitas interaksi (save+share vs total)
+  const eng=(cur.likes||0)+(cur.comments||0)+(cur.shares||0)+(cur.saves||0);
+  if(eng){
+    const shareP=(cur.shares||0)/eng*100, saveP=(cur.saves||0)/eng*100;
+    if(saveP>=INS.saveRatio||shareP>=INS.shareRatio) put(S,`Interaksi berkualitas — save ${saveP.toFixed(1)}% & share ${shareP.toFixed(1)}% dari total; konten layak disimpan/dibagikan.`);
+    else put(W,`Mayoritas interaksi cuma like — share ${shareP.toFixed(1)}%, save ${saveP.toFixed(1)}%. Coba konten yang lebih "layak simpan/bagikan".`);
+  }
+  // Efisiensi & konsistensi konten
+  if(cur.posts){
+    const rpp=Math.round((cur.reach||0)/cur.posts);
+    put(S,`${cur.posts} konten diposting — rata-rata ${fmtNum(rpp)} reach/konten.`);
+    if(prev && prev.posts && cur.posts>prev.posts && prev.reach && cur.reach<prev.reach)
+      put(A,`<b>Posting lebih banyak (${prev.posts}→${cur.posts}) tapi reach turun</b> — perbaiki kualitas/format, bukan sekadar kuantitas.`);
+    if(prev && prev.posts && cur.posts < prev.posts*0.6)
+      put(W,`Jumlah konten turun drastis (${prev.posts}→${cur.posts}) — jaga konsistensi posting.`);
+  } else put(W,`Belum ada konten terhitung bulan ini.`);
+  // Follower
+  if(cur.follows>0) put(S,`${fmtNum(cur.follows)} follower baru bulan ini.`);
+  else if(prev && prev.follows>0) put(W,`Tidak ada follower baru (bulan lalu ${fmtNum(prev.follows)}) — pertumbuhan berhenti.`);
+  return {sudah:S,perhatian:W,aksi:A};
+}
+function sosmedAdviceHtml(cur, prev, brand, periode){
+  const R=sosmedAdvice(cur, prev);
+  return insightBoxHtml('🤖 Saran Sosmed — '+insEsc(brand),
+    `${insEsc(periode)} — ${R.sudah.length} baik · ${R.perhatian.length} perhatian · ${R.aksi.length} aksi`,
+    R, 'Otomatis dari data Windsor dengan ambang tetap. Indikatif untuk arah konten; keputusan tetap di tim.');
+}
 /* ===== INQUIRY (rich, filter client-side) ===== */
 // Normalisasi status → key (harus sama dgn inqStatusKey_ di backend & Brand Needs)
 function inqKey(s){
@@ -1306,6 +1353,28 @@ function renderMarketing(){
     <div class="bcard"><h3>Avg ER%</h3><div class="big" style="font-size:23px">${avg('avgER').toFixed(2)}%</div>${delta(avg('avgER'),avgP('avgER'),true)}</div>
     <div class="bcard"><h3>New Follows</h3><div class="big" style="font-size:23px">${fmtNum(sum('follows'))}</div>${delta(sum('follows'),sumP('follows'),false)}</div>`;
 
+  // Saran sosmed per brand (butuh 1 brand terpilih; bandingkan bulan terpilih vs sebelumnya,
+  // atau bulan terakhir yang ada datanya bila month=Semua)
+  let adviceBox='';
+  if(f.brand!=='(Semua)'){
+    const agO=arr=>({reach:arr.reduce((s,x)=>s+(x.reach||0),0),views:arr.reduce((s,x)=>s+(x.views||0),0),
+      likes:arr.reduce((s,x)=>s+(x.likes||0),0),comments:arr.reduce((s,x)=>s+(x.comments||0),0),
+      shares:arr.reduce((s,x)=>s+(x.shares||0),0),saves:arr.reduce((s,x)=>s+(x.saves||0),0),
+      follows:arr.reduce((s,x)=>s+(x.follows||0),0),posts:arr.reduce((s,x)=>s+(x.posts||0),0),
+      er:arr.length?arr.reduce((s,x)=>s+(x.avgER||0),0)/arr.length:0});
+    let curArr, prevArr, periode;
+    if(monthSel){ curArr=flt; prevArr=prevRows; periode=`${f.month} vs ${prevMonth||'—'}`; }
+    else {
+      const bRows=rows.filter(r=>r.brand===f.brand).slice().sort((a,b)=>MONTHS.indexOf(a.month)-MONTHS.indexOf(b.month));
+      const last=bRows[bRows.length-1], prev=bRows[bRows.length-2];
+      curArr=last?[last]:[]; prevArr=prev?[prev]:[]; periode=last?`${last.month} (terakhir)`:'—';
+    }
+    adviceBox = curArr.length ? sosmedAdviceHtml(agO(curArr), prevArr.length?agO(prevArr):null, f.brand, periode)
+      : '<div class="note" style="margin:6px 0">Belum ada data sosmed untuk brand ini.</div>';
+  } else {
+    adviceBox = '<div class="note" style="margin:6px 0">💡 Pilih satu <b>Brand</b> di atas untuk melihat saran sosmed otomatisnya.</div>';
+  }
+
   const tb = flt.length ? flt.map(r=>`
     <tr><td><b>${r.brand}</b></td><td>${r.month} ${r.year}</td><td class="r num">${fmtNum(r.posts)}</td>
     <td class="r num">${fmtNum(r.reach)}</td><td class="r num">${fmtNum(r.views)}</td><td class="r num">${fmtNum(r.likes)}</td>
@@ -1320,6 +1389,7 @@ function renderMarketing(){
     </div>
     <div class="section-title">📊 Ringkasan KPI</div>
     <div class="brandgrid">${cards}</div>
+    ${adviceBox}
     <div class="section-title">📑 Detail per Laporan</div>
     <div class="tablewrap"><table>
       <thead><tr><th>Brand</th><th>Periode</th><th class="r">Posts</th><th class="r">Reach</th><th class="r">Views</th><th class="r">Likes</th><th class="r">Saves</th><th class="r">Follows</th><th class="r">Avg ER</th><th class="r">Story ER</th></tr></thead>
