@@ -224,7 +224,8 @@ function hitungEstMap(mode){
   const map={};
   const add=(b,m,v)=>{ if(!m||!b) return; const k=b+'|'+m; map[k]=(map[k]||0)+v; };
   if(mode!=='sebar'){
-    ((finData&&finData.rows)||[]).forEach(r=> add(r.brand, r.month, r.est||0));
+    // estDetail = per card & sudah override-aware (Budget web menang) → total konsisten dgn Pecahan
+    ((finData&&finData.estDetail)||[]).forEach(d=> add(d.brand, d.month, d.est||0));
     return map;
   }
   // 'sebar': estimasi tiap card dibagi ke bulan tempat item checklist-nya jatuh,
@@ -1269,6 +1270,21 @@ function renderFinance(){
     <div class="tablewrap"><table><thead><tr><th>Bulan</th><th>Brand</th><th class="r">Proyeksi</th><th class="r">Aktual</th><th class="r">Terpakai</th><th>Terakhir Diubah</th></tr></thead><tbody>${aRows}</tbody></table></div>
     ${aKosong.length?`<div class="note" style="margin-top:8px;font-size:12px;color:var(--text3)"><b>${aKosong.length} baris punya rencana tapi aktualnya masih kosong:</b> ${aKosong.slice(0,8).map(r=>r.brand+' — '+r.month).join(' · ')}${aKosong.length>8?' …+'+(aKosong.length-8)+' lagi':''}</div>`:''}`;
 
+  // Antrean approval Budget (usulan brand)
+  const ovAll = finData.budgetOverrides || [];
+  const ovPending = ovAll.filter(o=>o.status==='pending');
+  const ovDecided = ovAll.filter(o=>o.status!=='pending').sort((a,b)=>(b.decidedAt||'').localeCompare(a.decidedAt||''));
+  const ovRow = o => `<tr><td><b>${o.brand}</b></td><td>${o.card||'—'}</td><td><b>${o.month||'—'}</b></td>
+    <td class="r num">${fmtRp(o.budget)}</td><td class="muted">${o.proposedBy||'—'}<br><span style="font-size:10px">${o.proposedAt||''}</span></td>
+    <td><button class="tab bgt-approve" data-brand="${insEsc(o.brand)}" data-card="${insEsc(o.card)}" data-year="${o.year}" style="background:var(--green);color:#fff;border-color:var(--green)">✓ Approve</button>
+        <button class="tab bgt-reject" data-brand="${insEsc(o.brand)}" data-card="${insEsc(o.card)}" data-year="${o.year}">✗ Tolak</button></td></tr>`;
+  const approvalSection = ovAll.length ? `
+    <div class="section-title">🔔 Approval Budget ${ovPending.length?`<span class="pill cancel">${ovPending.length} menunggu</span>`:''}</div>
+    <div class="muted" style="margin:-4px 0 8px;font-size:12px">Usulan Budget dari brand. Yang di-<b>approve</b> menggantikan angka Trello & langsung dipakai di laporan.</div>
+    <div class="tablewrap"><table><thead><tr><th>Brand</th><th>Card / Agenda</th><th>Bulan</th><th class="r">Usulan Budget</th><th>Diusulkan</th><th>Aksi</th></tr></thead>
+      <tbody>${ovPending.length?ovPending.map(ovRow).join(''):'<tr><td colspan="6" class="muted" style="text-align:center;padding:14px">Tidak ada usulan menunggu.</td></tr>'}
+      ${ovDecided.slice(0,8).map(o=>`<tr style="opacity:.6"><td><b>${o.brand}</b></td><td>${o.card||'—'}</td><td>${o.month||'—'}</td><td class="r num">${fmtRp(o.budget)}</td><td class="muted">${o.proposedBy||''}</td><td>${o.status==='approved'?'<span class="pill deal">✓ approved</span>':'<span class="pill cancel">✗ ditolak</span>'} <span class="muted" style="font-size:10px">${o.decidedAt||''}</span></td></tr>`).join('')}</tbody></table></div>` : '';
+
   $('#content').innerHTML = `
     <div class="toolbar">
       <span class="lbl">Brand</span><select id="cBrand">${opt(brandOpts,f.brand)}</select>
@@ -1281,6 +1297,7 @@ function renderFinance(){
         <option value="sebar"${estMode==='sebar'?' selected':''}>Ikut sebaran checklist</option>
       </select>
     </div>
+    ${approvalSection}
     <div class="section-title">📊 Ringkasan ${finData.year}</div>
     <div class="muted" style="margin:-4px 0 10px;font-size:12px">Arahkan ke ikon <span class="info" tabindex="0">i</span> di tiap kartu untuk tahu arti &amp; sumber angkanya · klik kartu untuk lihat rinciannya.</div>
     <div class="brandgrid">${cards}</div>
@@ -1303,7 +1320,23 @@ function renderFinance(){
     const el=$('#fin-'+id); if(!el) return;
     el.onclick=()=>{ finOpen = finOpen===id ? '' : id; renderFinance(); };
   });
+  document.querySelectorAll('.bgt-approve').forEach(b=>b.onclick=()=>budgetDecision(b.dataset.brand,b.dataset.card,b.dataset.year,'approve'));
+  document.querySelectorAll('.bgt-reject').forEach(b=>b.onclick=()=>budgetDecision(b.dataset.brand,b.dataset.card,b.dataset.year,'reject'));
   posisiTooltip();
+}
+// BOD approve/reject usulan Budget → reload finance.
+async function budgetDecision(brand, card, year, decision){
+  let note='';
+  if(decision==='reject'){ note=prompt('Alasan menolak (opsional):')||''; }
+  else if(!confirm('Approve budget untuk "'+card+'" ('+brand+')?')) return;
+  try{
+    const r=await fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({
+      type:'budgetDecision', password:BOD_PW, brand:brand, card:card, year:Number(year), decision:decision, note:note })});
+    const j=await r.json();
+    if(!j.success){ alert('Gagal: '+(j.error||'')); return; }
+    const d=await (await fetch(APPS_SCRIPT_URL+'?action=getFinanceAll'+PW())).json();
+    if(d.success){ finData=d; renderFinance(); }
+  }catch(e){ alert('Gagal terhubung ke server.'); }
 }
 
 // Tooltip ⓘ default keluar di tengah-atas ikon. Kalau ikonnya mepet tepi layar,
