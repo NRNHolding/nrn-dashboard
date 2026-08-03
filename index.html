@@ -1044,7 +1044,11 @@ function renderFinance(){
     });
     return Math.round(s);
   };
-  const est=estJumlah(), proj=sum(flt,'proj'), act=sum(flt,'act');
+  // proj override-aware: dari finData.detail (sudah overlay proyeksi) sesuai filter brand+bulan
+  const projDetail = (finData.detail||[]).filter(d=>(f.brand==='(Semua)'||d.brand===f.brand) && (MONTHS.indexOf(d.month)>=fromIdx && MONTHS.indexOf(d.month)<=toIdx));
+  const projByBrand={}, projByMonth={};
+  projDetail.forEach(d=>{ projByBrand[d.brand]=(projByBrand[d.brand]||0)+(d.nominal||0); projByMonth[d.month]=(projByMonth[d.month]||0)+(d.nominal||0); });
+  const est=estJumlah(), proj=projDetail.reduce((s,d)=>s+(d.nominal||0),0), act=sum(flt,'act');
   const vEst=act-est, vProj=act-proj;
   const task=sum(flt,'taskCount'), done=sum(flt,'doneCount'), ovd=sum(flt,'overdueCount');
   const vcol=v=>v<=0?'var(--green4)':'var(--red)';
@@ -1222,7 +1226,7 @@ function renderFinance(){
   const brandsToShow = f.brand==='(Semua)' ? BR : [f.brand];
   const bRows = brandsToShow.map(b=>{
     const br = flt.filter(r=>r.brand===b);
-    const e=estJumlah(b), p=sum(br,'proj'), a=sum(br,'act');
+    const e=estJumlah(b), p=projByBrand[b]||0, a=sum(br,'act');
     return `<tr><td><b>${b}</b></td><td class="r num">${e?fmtRp(e):'<span class="lap-na">belum diisi</span>'}</td><td class="r num">${p?fmtRp(p):'<span class="lap-na">belum ada</span>'}</td><td class="r num">${a?fmtRp(a):'<span class="lap-na">belum terupdate</span>'}</td>
       <td class="r num">${vCell(a,e)}</td>
       <td class="r num">${vCell(a,p)}</td>
@@ -1235,7 +1239,7 @@ function renderFinance(){
   flt.forEach(r=>{ (byMonth[r.month]=byMonth[r.month]||[]).push(r); });
   const mRows = Object.keys(byMonth).sort((a,b)=>MONTHS.indexOf(a)-MONTHS.indexOf(b)).map(m=>{
     const mr=byMonth[m];
-    const e=estJumlah(null,m), p=sum(mr,'proj'), a=sum(mr,'act');
+    const e=estJumlah(null,m), p=projByMonth[m]||0, a=sum(mr,'act');
     return `<tr><td><b>${m}</b></td><td class="r num">${e?fmtRp(e):'<span class="lap-na">belum diisi</span>'}</td><td class="r num">${p?fmtRp(p):'<span class="lap-na">belum ada</span>'}</td><td class="r num">${a?fmtRp(a):'<span class="lap-na">belum terupdate</span>'}</td>
       <td class="r num">${vCell(a,e)}</td>
       <td class="r num">${vCell(a,p)}</td>
