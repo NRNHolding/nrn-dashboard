@@ -966,8 +966,9 @@ function renderInquiry(){
   const rows = D.filter(d=>
     (f.brand==='(Semua)'||d.brand===f.brand)&&
     (f.status==='(Semua)'|| inqKey(f.status)===inqKey(d.status)));
+  const webTag = d => d.source==='web' ? ` <span class="pill" style="background:#ede9fe;color:#5b21b6;font-size:9px" title="Dari website revolt-web${d.webStatus?' · status asli: '+d.webStatus:''}">🌐 web</span>` : '';
   const tb = rows.length ? rows.map(d=>`
-    <tr><td>${d.timestamp||'—'}</td><td><b>${d.brand}</b></td><td>${d.customer||'—'}</td><td>${d.product||'—'}</td>
+    <tr><td>${d.timestamp||'—'}</td><td><b>${d.brand}</b></td><td>${d.customer||'—'}${webTag(d)}</td><td>${d.product||'—'}</td>
     <td class="r num">${fmtRp(d.nominal)}</td><td>${d.contactVia||'—'}</td><td>${inqPill(d.status)}</td>
     <td>${d.tglQuotation||'—'}</td><td>${d.tglSampling||'—'}</td><td>${d.tglDeal||'—'}</td><td>${d.tglCancel||'—'}</td>
     <td class="muted">${d.alasanCancel||'—'}</td><td class="muted">${d.salesPic||'—'}</td></tr>`).join('')
