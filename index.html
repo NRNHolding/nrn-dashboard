@@ -248,6 +248,8 @@ function hitungEstMap(mode){
 }
 let mktFilt = { brand:'Revolt Industry', month:'(Semua)' };
 let mktData = null;
+const EN2ID_MON={January:"Januari",February:"Februari",March:"Maret",April:"April",May:"Mei",June:"Juni",July:"Juli",August:"Agustus",September:"September",October:"Oktober",November:"November",December:"Desember"};
+function normMktMonths(o){ if(o&&Array.isArray(o.rows)) o.rows.forEach(r=>{ if(r&&EN2ID_MON[r.month]) r.month=EN2ID_MON[r.month]; }); return o; }
 let agFilt = { brand:'(Semua)', bulan:'(Semua)' };
 const ALL_BRANDS = '(Semua Brand)';
 let lapFilt = { brand:ALL_BRANDS, month: MONTHS[new Date().getMonth()] };
@@ -287,7 +289,7 @@ async function load(force){
       $('#subInfo').textContent = 'Tahun '+finData.year;
       renderFinance();
     } else if(tab.type==='marketing'){
-      if(force || !mktData){ const r = await fetch(APPS_SCRIPT_URL+'?action=getMarketingAll'+PW()); mktData = await r.json(); }
+      if(force || !mktData){ const r = await fetch(APPS_SCRIPT_URL+'?action=getMarketingAll'+PW()); mktData = normMktMonths(await r.json()); }
       if(!mktData.success) throw new Error(mktData.error);
       $('#subInfo').textContent = mktData.rows.length+' laporan';
       renderMarketing();
@@ -299,7 +301,7 @@ async function load(force){
     } else if(tab.type==='laporan'){
       if(force || !agendaData){ const r = await fetch(APPS_SCRIPT_URL+'?action=getAgenda'+PW()); agendaData = await r.json(); }
       if(force || !finData){ const r = await fetch(APPS_SCRIPT_URL+'?action=getFinanceAll'+PW()); finData = await r.json(); }
-      if(force || !mktData){ const r = await fetch(APPS_SCRIPT_URL+'?action=getMarketingAll'+PW()); mktData = await r.json(); }
+      if(force || !mktData){ const r = await fetch(APPS_SCRIPT_URL+'?action=getMarketingAll'+PW()); mktData = normMktMonths(await r.json()); }
       if(force || !inqData){ const r = await fetch(APPS_SCRIPT_URL+'?action=getInquiryAll'+PW()); inqData = await r.json(); }
       $('#subInfo').textContent = 'Laporan bulanan';
       renderLaporan();
