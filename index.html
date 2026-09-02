@@ -1831,7 +1831,7 @@ function renderPortfolio(month, year, prevM, nextM){
       <div class="section-title">📄 Laporan Portfolio — Semua Brand · ${month} ${year}</div>
 
       <div class="brandgrid">
-        <div class="bcard"><h3>Anggaran Proyeksi</h3><div class="big" style="font-size:19px">${fmtRp(tProj)}</div><div class="biglbl">Est ${fmtRp(tEst)}</div></div>
+        <div class="bcard"><h3>Anggaran Proyeksi</h3><div class="big" style="font-size:19px">${fmtRp(tProj)}</div><div class="biglbl">Budget disepakati ${fmtRp(tEst)}</div></div>
         <div class="bcard"><h3>Anggaran Aktual</h3><div class="big" style="font-size:19px">${fmtRp(tAct)}</div><div class="biglbl">${tProj?Math.round(tAct/tProj*100):0}% dari proyeksi</div></div>
         <div class="bcard"><h3>Agenda Done</h3><div class="big">${agDone}/${agTot}</div><div class="biglbl">${agTot?Math.round(agDone/agTot*100):0}% selesai</div></div>
         <div class="bcard"><h3>Total Reach</h3><div class="big" style="font-size:19px">${fmtNum(tReach)}</div><div class="biglbl">Avg ER ${avgER.toFixed(2)}%</div></div>
