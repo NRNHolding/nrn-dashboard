@@ -17,6 +17,50 @@
  --text:#241c12;--text2:#4f4534;--text3:#8a8170;
  --radius:13px;--shadow:0 4px 22px rgba(35,40,30,.10);
 }
+/* ── Papan BOD ── */
+.bppapan{display:flex;gap:9px;align-items:flex-start;overflow-x:auto;padding:4px 2px 8px}
+.bpcol{flex:0 0 262px;background:var(--cream);border:1px solid var(--cream2);border-radius:12px;display:flex;flex-direction:column;max-height:64vh}
+.bpcol.quiet{flex:0 0 98px;background:transparent}
+.bpcol.now{box-shadow:0 0 0 1px var(--gold)}
+.bpcol.over{background:var(--green-bg);border-color:var(--green4);border-style:dashed;flex-basis:262px}
+.bphd{padding:8px 10px 7px;border-bottom:1px solid var(--cream2)}
+.bphd b{font-size:12px}.bphd .n{font-size:11px;color:var(--text3);margin-left:5px}
+.bphd .s{display:block;font-size:10.5px;color:var(--text3);margin-top:3px}
+.bpstack{padding:7px;display:flex;flex-direction:column;gap:6px;overflow-y:auto;flex:1;min-height:48px}
+.bpempty{font-size:10.5px;color:var(--text3);text-align:center;padding:10px 4px;font-style:italic;border:1px dashed var(--cream2);border-radius:8px}
+.bptile{background:var(--white);border:1px solid var(--cream2);border-radius:9px;cursor:grab;text-align:left;padding:9px 10px;width:100%;font:inherit;color:inherit;display:block;box-shadow:0 1px 3px rgba(35,40,30,.06)}
+.bptile:hover{border-color:var(--gold)}
+.bptile.dragging{opacity:.4}
+.bptile .br{display:block;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:3px}
+.bptile .t{display:block;font-weight:700;font-size:12.5px;margin-bottom:5px;word-break:break-word}
+.bptile .bs{display:flex;flex-wrap:wrap;gap:3px}
+.bpb{font-size:9.5px;font-weight:700;padding:2px 5px;border-radius:4px;background:var(--cream);color:var(--text2);white-space:nowrap}
+.bpb.w{background:var(--gold-bg);color:var(--amber)}
+.bpb.b{background:var(--red-bg);color:var(--red)}
+.bpb.g{background:var(--green-bg);color:var(--green4)}
+.bpb.e{background:var(--gold-bg);color:var(--amber);border:1px solid var(--gold)}
+.bpscrim{position:fixed;inset:0;background:rgba(20,18,13,.5);z-index:60}
+.bpdraw{position:fixed;top:0;right:0;bottom:0;width:min(580px,100%);background:var(--white);z-index:61;display:flex;flex-direction:column;border-left:1px solid var(--cream2)}
+.bpdraw .h{padding:13px 16px 11px;border-bottom:1px solid var(--cream2);display:flex;gap:10px;align-items:flex-start}
+.bpdraw .h h3{margin:0;font-size:16px;word-break:break-word}
+.bpdraw .h .eb{font-size:10px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
+.bpdraw .x{background:none;border:0;cursor:pointer;color:var(--text3);font-size:19px;line-height:1;padding:2px 5px}
+.bpdraw .b{overflow-y:auto;flex:1;padding:14px 16px 20px}
+.bpdraw .f{padding:10px 16px;border-top:1px solid var(--cream2);display:flex;gap:8px;align-items:center}
+.bpsec{margin-bottom:16px}
+.bpsec>.l{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin-bottom:7px}
+.bpsec select{padding:6px 9px;border:1px solid var(--cream2);border-radius:8px;background:var(--white);color:var(--text);font-size:12.5px}
+.bpchips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.bprow{border:1px solid var(--cream2);border-radius:9px;background:var(--cream);padding:7px 8px;margin-bottom:6px}
+.bprow.warn{border-color:var(--gold)}
+.bprow .g1{display:grid;grid-template-columns:1fr 122px 100px 120px 24px;gap:5px;align-items:center}
+.bprow input,.bprow select{padding:5px 7px;border:1px solid var(--cream2);border-radius:7px;background:var(--white);color:var(--text);font-size:12px;width:100%}
+.bprow input.pn{text-align:right}
+.bprow .del{background:none;border:0;color:var(--text3);cursor:pointer;font-size:15px;padding:0}
+.bprow .del:hover{color:var(--red)}
+.bprow .gen{margin-top:5px;font-size:10px;color:var(--text3);word-break:break-word}
+.bprow .gen code{background:var(--white);padding:1px 4px;border-radius:4px}
+@media(max-width:640px){.bprow .g1{grid-template-columns:1fr 1fr;gap:5px}.bpcol{flex-basis:230px}}
 body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5}
 .num{font-family:'DM Mono',monospace;font-variant-numeric:tabular-nums}
 .header{background:var(--green);padding:18px 30px 0;position:relative;overflow:hidden}
@@ -380,9 +424,12 @@ function renderAgenda(){
       <span style="flex:1"></span>
       <button class="tab ${agView==='list'?'on':''}" id="agTabList">📋 List</button>
       <button class="tab ${agView==='timeline'?'on':''}" id="agTabTl">📊 Timeline</button>
+      <button class="tab ${agView==='papan'?'on':''}" id="agTabPapan">🗂 Papan</button>
     </div>
     ${agView==='timeline'
       ? renderAgendaTimelineBOD(rows)
+      : agView==='papan'
+      ? renderAgendaPapanBOD(rows)
       : `<div class="tablewrap"><table>
       <thead><tr><th>Brand</th><th id="thCard" style="cursor:pointer;user-select:none">Card / Agenda <span style="opacity:.6">${sortArrow}</span></th><th>Subtask</th><th>Bulan</th><th>Deadline</th><th>Sisa Hari</th><th>Status</th><th>PIC</th></tr></thead>
       <tbody>${tb}</tbody></table></div>`}`;
@@ -391,6 +438,8 @@ function renderAgenda(){
   $('#fStatus').onchange=e=>{f.status=e.target.value;renderAgenda();};
   $('#agTabList').onclick=()=>{agView='list';renderAgenda();};
   $('#agTabTl').onclick=()=>{agView='timeline';renderAgenda();};
+  $('#agTabPapan').onclick=()=>{agView='papan';bpData=null;renderAgenda();};
+  if(agView==='papan') wireAgendaPapanBOD();
   if($('#thCard')) $('#thCard').onclick=()=>{ agendaSort = agendaSort===1 ? -1 : (agendaSort===-1 ? 0 : 1); renderAgenda(); };
   if(agView==='timeline'){
     if($('#agScMonth')) $('#agScMonth').onclick=()=>{ agTlScope='month'; renderAgenda(); };
@@ -409,6 +458,231 @@ function agScopeTabsBOD(){
 }
 /* Timeline start–end (BOD): rentang per card dari deadlineSort tiap item.
    rows = detail yang SUDAH difilter brand/bulan/status. */
+/* ═══ Papan BOD — kanban agenda per bulan, semua brand ═══ */
+const bpEsc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const BP_ST=['Task Created','Checklist Created','In Progress','Done'];
+let bpData=null, bpSel=null, bpDrag=null;
+
+function bpBuild(rows){
+  const map={};
+  (rows||[]).forEach(x=>{
+    const brand=String(x.brand||''), card=String(x.card||'(tanpa card)');
+    const key=brand+'||'+card;
+    if(!map[key]) map[key]={brand:brand, card:card, bulan:String(x.bulan||''), bulan0:String(x.bulan||''), pic:String(x.pic||''), rows:[]};
+    if(!map[key].bulan && x.bulan){ map[key].bulan=String(x.bulan); map[key].bulan0=String(x.bulan); }
+    if(!map[key].pic && x.pic) map[key].pic=String(x.pic);
+    const sub=String(x.subtask||''), dl=String(x.deadlineISO||''), nom=Number(x.nominal)||0, st=statusLabel(x.status);
+    map[key].rows.push({sub:sub,sub0:sub,dl:dl,dl0:dl,nom:nom,nom0:nom,st:st,st0:st,baru:false});
+  });
+  return Object.keys(map).map(k=>map[k]);
+}
+const bpRowDirty=r=>!!(r.baru||r.sub!==r.sub0||r.dl!==r.dl0||Number(r.nom)!==Number(r.nom0)||r.st!==r.st0);
+const bpCardDirty=c=>!!(c.bulan!==c.bulan0||c.rows.some(bpRowDirty));
+const bpDirtyN=()=>(bpData||[]).reduce((n,c)=>n+(bpCardDirty(c)?1:0),0);
+function bpSisa(iso){
+  if(!iso) return null;
+  const p=iso.split('-').map(Number), t=new Date(); t.setHours(0,0,0,0);
+  return Math.round((new Date(p[0],p[1]-1,p[2])-t)/86400000);
+}
+function bpNama(sub,iso,nom){
+  const tag=iso?('['+iso.slice(8,10)+' '+iso.slice(5,7)+'] - '):'';
+  return tag+(sub||'')+(Number(nom)>0?(' (Rp '+fmtNum(nom)+')'):'');
+}
+function bpRp(s){
+  const t=String(s||'').trim(); if(!t) return 0;
+  const m=t.match(/^([0-9][0-9.,]*)\s*(jt|juta|rb|ribu|k|miliar|milyar|m)?$/i);
+  if(m && m[2]){
+    const mult={jt:1e6,juta:1e6,rb:1e3,ribu:1e3,k:1e3,m:1e9,miliar:1e9,milyar:1e9}[m[2].toLowerCase()]||1;
+    return Math.round((parseFloat(m[1].replace(/\./g,'').replace(',','.'))||0)*mult);
+  }
+  return Number(t.replace(/[^0-9]/g,''))||0;
+}
+function bpTile(c,i){
+  const tot=c.rows.length, done=c.rows.filter(r=>r.st==='Done').length;
+  const nonom=c.rows.filter(r=>!(Number(r.nom)>0)).length;
+  const telat=c.rows.filter(r=>{const s=bpSisa(r.dl);return r.st!=='Done'&&s!==null&&s<0;}).length;
+  const pro=c.rows.reduce((s,r)=>s+(Number(r.nom)||0),0);
+  return '<button class="bptile" draggable="true" data-bpt="'+i+'">'
+    +'<span class="br">'+bpEsc(c.brand)+'</span>'
+    +'<span class="t">'+bpEsc(c.card)+'</span>'
+    +'<span class="bs">'
+    +'<span class="bpb'+(tot&&done===tot?' g':'')+'">'+done+'/'+tot+' selesai</span>'
+    +'<span class="bpb">'+fmtRp(pro)+'</span>'
+    +(nonom?'<span class="bpb w">'+nonom+' tanpa nominal</span>':'')
+    +(telat?'<span class="bpb b">'+telat+' lewat</span>':'')
+    +(bpCardDirty(c)?'<span class="bpb e">diubah</span>':'')
+    +'</span></button>';
+}
+function bpBoardHtml(){
+  const kini=MONTHS[new Date().getMonth()];
+  const adaTanpa=(bpData||[]).some(c=>!c.bulan);
+  const cols=MONTHS.concat(adaTanpa?['(tanpa bulan)']:[]);
+  return cols.map(M=>{
+    const list=[]; (bpData||[]).forEach((c,i)=>{ if((c.bulan||'(tanpa bulan)')===M) list.push([c,i]); });
+    const quiet=!list.length && M!=='(tanpa bulan)';
+    const pro=list.reduce((s,p)=>s+p[0].rows.reduce((a,r)=>a+(Number(r.nom)||0),0),0);
+    return '<section class="bpcol'+(quiet?' quiet':'')+(M===kini?' now':'')+'" data-bpcol="'+bpEsc(M)+'">'
+      +'<div class="bphd"><b>'+bpEsc(M)+'</b><span class="n">'+list.length+'</span>'
+      +(quiet?'':'<span class="s">'+fmtRp(pro)+'</span>')+'</div>'
+      +'<div class="bpstack">'+(list.map(p=>bpTile(p[0],p[1])).join('')
+        ||'<div class="bpempty">seret ke sini</div>')+'</div></section>';
+  }).join('');
+}
+function renderAgendaPapanBOD(rows){
+  if(!bpData) bpData=bpBuild(rows);
+  return '<div class="note" style="margin:8px 0">🗂 Kolom mengikuti list bulan di board Trello tiap brand. '
+    +'<b>Seret kartu</b> antar bulan untuk menjadwalkan ulang, <b>klik kartu</b> untuk membereskan tanggal, nominal, dan status subtask. '
+    +'Perubahan dari sini langsung berlaku dan mengalahkan Trello.</div>'
+    +'<div class="toolbar" style="margin-bottom:8px"><button class="tab" id="bpSave" disabled>💾 Simpan Semua</button>'
+    +'<span class="lbl" id="bpDirty"></span>'
+    +'<button class="tab" id="bpReset" style="display:none">↺ Batalkan perubahan</button></div>'
+    +'<div class="bppapan" id="bpBoard">'+bpBoardHtml()+'</div><div id="bpDrawHost"></div>';
+}
+function bpDock(){
+  const b=$('#bpSave'), c=$('#bpDirty'), r=$('#bpReset'); if(!b) return;
+  const n=bpDirtyN();
+  b.disabled=n===0; c.textContent=n?(n+' kartu diubah'):''; r.style.display=n?'':'none';
+}
+function bpRedraw(){ const b=$('#bpBoard'); if(!b) return; b.innerHTML=bpBoardHtml(); bpDock(); }
+function bpRowHtml(r,idx){
+  const s=bpSisa(r.dl), warn=!r.dl||!(Number(r.nom)>0);
+  return '<div class="bprow'+(warn?' warn':'')+'" data-bpr="'+idx+'">'
+    +'<div class="g1">'
+    +'<input class="ps" value="'+bpEsc(r.sub)+'" placeholder="Nama subtask">'
+    +'<input class="pd" type="date" value="'+bpEsc(r.dl)+'">'
+    +'<input class="pn" value="'+(Number(r.nom)>0?fmtNum(r.nom):'')+'" placeholder="0">'
+    +'<select class="pst">'+BP_ST.map(o=>'<option'+(o===r.st?' selected':'')+'>'+o+'</option>').join('')+'</select>'
+    +'<button class="del" data-bpdel="'+idx+'" title="Hapus baris">&times;</button></div>'
+    +'<div class="gen">akan ditulis: <code>'+bpEsc(bpNama(r.sub,r.dl,r.nom))+'</code>'
+    +(s===null?' · tanpa tanggal':(' · '+(s<0?((-s)+' hari lewat'):(s+' hari lagi'))))+'</div></div>';
+}
+function bpDrawHtml(c){
+  const pro=c.rows.reduce((s,r)=>s+(Number(r.nom)||0),0);
+  return '<div class="bpscrim" data-bpclose></div><aside class="bpdraw" role="dialog" aria-modal="true">'
+    +'<div class="h"><div style="flex:1;min-width:0"><div class="eb">'+bpEsc(c.brand)+' · list '+bpEsc(c.bulan||'tanpa bulan')+'</div>'
+    +'<h3>'+bpEsc(c.card)+'</h3></div><button class="x" data-bpclose>&times;</button></div>'
+    +'<div class="b">'
+    +'<div class="bpsec"><div class="l">Bulan (list Trello)</div>'
+    +'<select id="bpMon">'+MONTHS.map(m=>'<option'+(m===c.bulan?' selected':'')+'>'+m+'</option>').join('')+'</select>'
+    +'<div class="muted" style="font-size:11.5px;margin-top:5px">Mengubah ini menggeser semua tanggal subtask sebanyak selisih bulannya.</div></div>'
+    +'<div class="bpsec"><div class="l">Checklist · '+c.rows.length+' baris</div>'
+    +'<div class="bpchips"><button class="tab" id="bpAdd">+ Baris</button>'
+    +'<button class="tab" data-bpb="7">Semua +7 hari</button>'
+    +'<button class="tab" data-bpb="30">Semua +1 bulan</button>'
+    +'<button class="tab" data-bpb="eom">Semua ke akhir bulan</button></div>'
+    +'<div id="bpRows">'+c.rows.map((r,i)=>bpRowHtml(r,i)).join('')+'</div>'
+    +'<div class="muted" style="font-size:11.5px;margin-top:7px">Total proyeksi kartu ini <b>'+fmtRp(pro)+'</b>. '
+    +'Nominal menerima <b>1,5jt</b>, <b>500rb</b>, atau <b>1.500.000</b>.</div></div>'
+    +'</div><div class="f"><button class="tab" data-bpclose>Tutup</button><span style="flex:1"></span>'
+    +'<button class="tab on" id="bpDone">Selesai</button></div></aside>';
+}
+function bpOpenCard(i){
+  const c=(bpData||[])[i]; if(!c) return;
+  bpSel=i; $('#bpDrawHost').innerHTML=bpDrawHtml(c); bpWireDraw(c);
+}
+function bpClose(){ bpSel=null; const h=$('#bpDrawHost'); if(h) h.innerHTML=''; bpRedraw(); }
+function bpRefreshRows(c){
+  const box=$('#bpRows'); if(!box) return;
+  box.innerHTML=c.rows.map((r,i)=>bpRowHtml(r,i)).join('');
+  bpWireRows(c); bpDock();
+}
+function bpWireRows(c){
+  const box=$('#bpRows'); if(!box) return;
+  box.querySelectorAll('[data-bpr]').forEach(el=>{
+    const r=c.rows[+el.dataset.bpr]; if(!r) return;
+    const gen=el.querySelector('.gen code');
+    const upd=()=>{ gen.textContent=bpNama(r.sub,r.dl,r.nom); bpDock(); };
+    el.querySelector('.ps').oninput=e=>{ r.sub=e.target.value; upd(); };
+    el.querySelector('.pd').onchange=e=>{ r.dl=e.target.value; bpRefreshRows(c); };
+    el.querySelector('.pst').onchange=e=>{ r.st=e.target.value; bpDock(); };
+    el.querySelector('.pn').onblur=e=>{ const v=bpRp(e.target.value); r.nom=v; e.target.value=v?fmtNum(v):''; upd(); };
+  });
+  box.querySelectorAll('[data-bpdel]').forEach(b=>b.onclick=()=>{ c.rows.splice(+b.dataset.bpdel,1); bpRefreshRows(c); });
+}
+function bpGeser(c, ke){
+  const from=MONTHS.indexOf(c.bulan), to=MONTHS.indexOf(ke);
+  c.bulan=ke;
+  if(from<0||to<0) return;
+  const d=to-from;
+  c.rows.forEach(r=>{ if(!r.dl) return;
+    const p=r.dl.split('-').map(Number), t=new Date(p[0],p[1]-1+d,1);
+    const last=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();
+    r.dl=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(Math.min(p[2],last)).padStart(2,'0');
+  });
+}
+function bpWireDraw(c){
+  const h=$('#bpDrawHost');
+  h.onclick=e=>{ if(e.target.closest('[data-bpclose]')) bpClose(); };
+  $('#bpMon').onchange=e=>{ bpGeser(c,e.target.value); bpOpenCard(bpSel); };
+  $('#bpAdd').onclick=()=>{
+    const last=c.rows[c.rows.length-1];
+    c.rows.push({sub:'',sub0:'',dl:(last&&last.dl)||'',dl0:'',nom:0,nom0:0,st:'Task Created',st0:'',baru:true});
+    bpRefreshRows(c);
+    const inp=document.querySelectorAll('#bpRows .ps'); if(inp.length) inp[inp.length-1].focus();
+  };
+  h.querySelectorAll('[data-bpb]').forEach(b=>b.onclick=()=>{
+    const k=b.dataset.bpb;
+    c.rows.forEach(r=>{ if(!r.dl) return;
+      const p=r.dl.split('-').map(Number); let d=new Date(p[0],p[1]-1,p[2]);
+      if(k==='eom') d=new Date(p[0],p[1],0); else d.setDate(d.getDate()+ +k);
+      r.dl=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    });
+    bpRefreshRows(c);
+  });
+  $('#bpDone').onclick=bpClose;
+  bpWireRows(c);
+}
+function bpWireBoard(){
+  const board=$('#bpBoard'); if(!board) return;
+  board.onclick=e=>{ const t=e.target.closest('[data-bpt]'); if(t&&!t.classList.contains('dragging')) bpOpenCard(+t.dataset.bpt); };
+  board.ondragstart=e=>{ const t=e.target.closest('[data-bpt]'); if(!t) return;
+    bpDrag=+t.dataset.bpt; t.classList.add('dragging'); e.dataTransfer.effectAllowed='move';
+    try{ e.dataTransfer.setData('text/plain', String(bpDrag)); }catch(_){} };
+  board.ondragend=e=>{ const t=e.target.closest('[data-bpt]'); if(t) t.classList.remove('dragging');
+    board.querySelectorAll('.bpcol.over').forEach(c=>c.classList.remove('over')); bpDrag=null; };
+  board.ondragover=e=>{ const col=e.target.closest('[data-bpcol]'); if(!col||bpDrag===null) return;
+    e.preventDefault(); board.querySelectorAll('.bpcol.over').forEach(c=>{ if(c!==col) c.classList.remove('over'); });
+    col.classList.add('over'); };
+  board.ondrop=e=>{ const col=e.target.closest('[data-bpcol]'); if(!col||bpDrag===null) return;
+    e.preventDefault(); const i=bpDrag; bpDrag=null;
+    const c=(bpData||[])[i], ke=col.dataset.bpcol;
+    if(!c||c.bulan===ke||ke==='(tanpa bulan)'){ bpRedraw(); return; }
+    bpGeser(c,ke); bpRedraw();
+  };
+}
+async function bpSimpan(){
+  const perBrand={};
+  (bpData||[]).forEach(c=>c.rows.forEach(r=>{
+    if(!bpRowDirty(r)) return;
+    if(!String(r.sub||'').trim()) return;
+    (perBrand[c.brand]=perBrand[c.brand]||[]).push({card:c.card, subtask:r.sub, deadline:r.dl,
+      nominal:Number(r.nom)||0, status:r.st});
+  }));
+  const brands=Object.keys(perBrand);
+  if(!brands.length){ alert('Tidak ada perubahan.'); return; }
+  const b=$('#bpSave'); b.disabled=true; b.textContent='Menyimpan…';
+  let ok=0, gagal=[];
+  for(const br of brands){
+    try{
+      const r=await fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({
+        type:'editProyeksiBulk', brand:br, password:BOD_PW, items:perBrand[br] })});
+      const j=await r.json();
+      if(j.success) ok+=(j.count||perBrand[br].length); else gagal.push(br+': '+(j.error||''));
+    }catch(e){ gagal.push(br+': gagal terhubung'); }
+  }
+  b.textContent='💾 Simpan Semua';
+  if(gagal.length) alert('Sebagian gagal —\n'+gagal.join('\n'));
+  else alert('✅ '+ok+' baris tersimpan — langsung berlaku.');
+  try{ const rr=await fetch(APPS_SCRIPT_URL+'?action=getAgenda'+PW()); agendaData=await rr.json(); }catch(e){}
+  bpData=null; renderAgenda();
+}
+function wireAgendaPapanBOD(){
+  bpWireBoard(); bpDock();
+  const s=$('#bpSave'), r=$('#bpReset');
+  if(s) s.onclick=bpSimpan;
+  if(r) r.onclick=()=>{ bpData=null; renderAgenda(); };
+}
+
 function renderAgendaTimelineBOD(rows){
   const now=new Date();
   if(agTlYear===undefined){ agTlYear=now.getFullYear(); agTlMonth=now.getMonth(); }
