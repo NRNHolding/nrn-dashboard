@@ -78,6 +78,22 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);
 .tab{background:transparent;border:0;color:rgba(255,255,255,.6);padding:11px 18px;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:600;border-radius:10px 10px 0 0;border-bottom:3px solid transparent}
 .tab:hover{color:#fff}
 .tab.on{background:var(--cream);color:var(--green);border-bottom-color:var(--gold)}
+/* .tab aslinya untuk nav di header hijau (teks putih 60%). Di area terang
+   — toolbar dan drawer Papan — teks putih itu nyaris tak terbaca, jadi
+   di sana dibuat pil bertepi dengan teks gelap. */
+.toolbar .tab, .bpdraw .tab, .bpchips .tab{
+  color:var(--text2); background:var(--white); border:1px solid var(--cream2);
+  border-bottom:1px solid var(--cream2); border-radius:9px;
+  padding:6px 12px; font-size:12.5px; line-height:1.35;
+}
+.toolbar .tab:hover, .bpdraw .tab:hover, .bpchips .tab:hover{
+  color:var(--text); border-color:var(--gold); background:var(--white);
+}
+.toolbar .tab.on, .bpdraw .tab.on{
+  background:var(--green); color:#f6f2ea; border-color:var(--green);
+}
+.toolbar .tab:disabled{ opacity:.45; cursor:not-allowed }
+.toolbar .tab:disabled:hover{ border-color:var(--cream2); color:var(--text2) }
 .wrap{max-width:1240px;margin:0 auto;padding:22px 20px 70px}
 .section-title{font-family:'DM Serif Display',serif;font-size:18px;color:var(--green);font-weight:400;margin:20px 0 11px}
 /* brand cards (agenda) */
