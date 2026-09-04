@@ -62,6 +62,10 @@
 .bprow input.pn{text-align:right}
 .bprow .del{background:none;border:0;color:var(--text3);cursor:pointer;font-size:15px;padding:0}
 .bprow .del:hover{color:var(--red)}
+.tabbadge{display:inline-block;margin-left:6px;padding:0 6px;border-radius:9px;background:var(--red);color:#fff;font-size:10px;font-weight:700;line-height:16px;vertical-align:middle}
+.notifbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 14px;padding:11px 14px;border:1px solid var(--gold);border-left:4px solid var(--gold);border-radius:10px;background:#fffaf0}
+.notifbar .isi{flex:1;min-width:200px;font-size:13px;color:var(--text)}
+.notifbar .isi small{display:block;margin-top:2px;font-size:11.5px;color:var(--text2)}
 .bptunggu{margin-top:7px;padding:7px 9px;border:1px solid var(--gold);border-radius:8px;background:#fffaf0;font-size:11.5px;color:var(--text2);line-height:1.5}
 .bptunggu b{color:var(--text)}
 .bpdet{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:7px 12px}
@@ -338,9 +342,18 @@ const $ = s => document.querySelector(s);
 let BOD_PW = '';
 const PW = () => '&password=' + encodeURIComponent(BOD_PW);
 
+// Usulan budget yang menunggu keputusan. Diambil dari data mana pun yang
+// sudah termuat — agendaData ikut terisi sejak login, jadi angkanya sudah ada
+// sebelum tab Agenda (Finance) pernah dibuka.
+function usulanPending(){
+  const src=((finData&&finData.budgetOverrides)||(agendaData&&agendaData.budgetOverrides)||[]);
+  return src.filter(o=>String(o.status||'').toLowerCase()==='pending');
+}
 function renderTabs(){
+  const n=usulanPending().length;
   $('#tabs').innerHTML = TABS.map(t =>
-    `<button class="tab ${t.id===active?'on':''}" data-tab="${t.id}">${t.label}</button>`).join('');
+    `<button class="tab ${t.id===active?'on':''}" data-tab="${t.id}">${t.label}${
+      (t.id==='finance'&&n)?`<span class="tabbadge">${n}</span>`:''}</button>`).join('');
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { active = b.dataset.tab; load(); });
 }
 
@@ -348,6 +361,7 @@ async function load(force){
   renderTabs();
   const tab = TABS.find(t => t.id===active);
   $('#content').innerHTML = '<div class="loading"><span class="spin">⏳</span> Memuat…</div>';
+  tampilkanNotifBOD();
   try{
     if(tab.type==='agenda'){
       if(force || !agendaData){ const r = await fetch(APPS_SCRIPT_URL+'?action=getAgenda'+PW()); agendaData = await r.json(); }
@@ -389,9 +403,29 @@ async function load(force){
       $('#subInfo').textContent = '';
       renderGrid(d.values);
     }
+    // Hitung ulang setelah data masuk — saat pertama dipanggil, data untuk
+    // menghitung usulan pending belum tentu sudah ada.
+    renderTabs(); tampilkanNotifBOD();
   }catch(e){
     $('#content').innerHTML = '<div class="loading">⚠️ Gagal memuat.<br><small>'+(e.message||e)+'</small><br><small>Pastikan Web App sudah di-deploy ulang.</small></div>';
   }
+}
+
+// Banner usulan budget yang menunggu keputusan. Ditaruh di atas konten dan
+// tampil di semua tab kecuali Anggaran — di sana antreannya sudah kelihatan.
+function tampilkanNotifBOD(){
+  const lama=$('#notifBOD'); if(lama) lama.remove();
+  const p=usulanPending();
+  if(!p.length || active==='finance') return;
+  const per={}; p.forEach(o=>{ per[o.brand]=(per[o.brand]||0)+1; });
+  const rinci=Object.keys(per).map(b=>b+' ('+per[b]+')').join(' · ');
+  const el=document.createElement('div');
+  el.id='notifBOD'; el.className='notifbar';
+  el.innerHTML='🔔 <div class="isi"><b>'+p.length+' usulan budget menunggu keputusan</b>'
+    +'<small>'+bpEsc(rinci)+'</small></div>'
+    +'<button class="tab on" id="notifBODGo">Lihat →</button>';
+  $('#content').parentNode.insertBefore(el, $('#content'));
+  $('#notifBODGo').onclick=()=>{ active='finance'; load(); };
 }
 
 /* ===== AGENDA (rich) ===== */
@@ -510,7 +544,7 @@ function bpTungguHtml(c){
   if(!u) return '';
   const kapan=u.proposedAt?(' · diajukan '+bpEsc(u.proposedAt)):'';
   return '<div class="bptunggu">⏳ <b>'+bpEsc(c.brand)+' mengusulkan '+fmtRp(Number(u.budget)||0)+'</b>'+kapan+'.'
-    +'<br>Belum diputus — approve atau tolak di tab <b>Anggaran</b>. Budget yang dipakai masih yang lama.</div>';
+    +'<br>Belum diputus — approve atau tolak di tab <b>💰 Agenda (Finance)</b>. Budget yang dipakai masih yang lama.</div>';
 }
 function bpCardOf(brand,card){
   const rows=(agendaData&&agendaData.cardDetail)||[];
@@ -1945,6 +1979,13 @@ async function budgetDecision(brand, card, year, decision){
     if(!j.success){ alert('Gagal: '+(j.error||'')); return; }
     const d=await (await fetch(APPS_SCRIPT_URL+'?action=getFinanceAll'+PW())).json();
     if(d.success){ finData=d; renderFinance(); }
+    // agendaData ikut dimuat ulang supaya penanda di Papan tidak tertinggal.
+    try{ const a=await (await fetch(APPS_SCRIPT_URL+'?action=getAgenda'+PW())).json();
+         if(a.success){ agendaData=a; bpData=null; bpSig=null; } }catch(_){}
+    renderTabs(); tampilkanNotifBOD();
+    alert(decision==='approve'
+      ? '✅ Budget "'+card+'" ('+brand+') di-approve — langsung dipakai di laporan.'
+      : '✗ Usulan budget "'+card+'" ('+brand+') ditolak.');
   }catch(e){ alert('Gagal terhubung ke server.'); }
 }
 
