@@ -577,10 +577,19 @@ function bpAktOf(brand,card){
   const rows=(agendaData&&agendaData.aktDetail)||[];
   return rows.find(x=>String(x.brand)===String(brand)&&String(x.card)===String(card))||null;
 }
+// Bulan di estDetail ikut deadline KARTU-nya, kolom papan ikut tanggal subtask
+// paling awal — sering tidak sama. Cocok persis dulu, lalu nama kartu saja.
 function bpEstOf(brand,card,bulan){
-  const rows=(agendaData&&agendaData.estDetail)||[];
-  const d=rows.find(x=>String(x.brand)===String(brand)&&String(x.card)===String(card)&&(!bulan||String(x.month)===String(bulan)));
-  return d?Number(d.est)||0:0;
+  const nama=String(card||'').trim(), br=String(brand||'').trim();
+  const rows=(agendaData&&agendaData.estDetail)||(finData&&finData.estDetail)||[];
+  const sama=x=>String(x.brand||'').trim()===br&&String(x.card||'').trim()===nama;
+  const d=rows.find(x=>sama(x)&&(!bulan||String(x.month)===String(bulan))) || rows.find(sama);
+  if(d && Number(d.est)>0) return Number(d.est);
+  // Kartu yang belum ada di Task Database tidak muncul di estDetail sama sekali.
+  const ov=((agendaData&&agendaData.budgetOverrides)||(finData&&finData.budgetOverrides)||[])
+    .find(o=>String(o.brand||'').trim()===br&&String(o.card||'').trim()===nama
+            &&String(o.status||'').toLowerCase()==='approved');
+  return ov?(Number(ov.budget)||0):0;
 }
 function bpAgOf(brand,card){
   const rows=(agendaData&&agendaData.agencyKartu)||[];
