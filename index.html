@@ -62,6 +62,8 @@
 .bprow input.pn{text-align:right}
 .bprow .del{background:none;border:0;color:var(--text3);cursor:pointer;font-size:15px;padding:0}
 .bprow .del:hover{color:var(--red)}
+.bptunggu{margin-top:7px;padding:7px 9px;border:1px solid var(--gold);border-radius:8px;background:#fffaf0;font-size:11.5px;color:var(--text2);line-height:1.5}
+.bptunggu b{color:var(--text)}
 .bpdet{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:7px 12px}
 .bpdet .it{min-width:0}
 .bpdet .k{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
@@ -496,6 +498,20 @@ let bpData=null, bpSel=null, bpDrag=null, bpSig=null, bpSort='urut';
 // Agency per kartu. Kosong = dikerjakan sendiri, tanpa agency.
 // Design dikerjakan Akronim; foto & video oleh Tenshi Studio atau Holding.
 const BP_AG=['Tenshi Studio','Akronim','Holding'];
+// Usulan budget dari brand yang belum diputus. BOD memutuskannya di tab
+// Anggaran; di sini cuma ditandai supaya kelihatan saat membereskan agenda.
+function bpUsulOf(brand,card){
+  const rows=(agendaData&&agendaData.budgetOverrides)||[];
+  return rows.find(x=>String(x.brand)===String(brand)&&String(x.card)===String(card)
+    &&String(x.status||'').toLowerCase()==='pending')||null;
+}
+function bpTungguHtml(c){
+  const u=bpUsulOf(c.brand,c.card);
+  if(!u) return '';
+  const kapan=u.proposedAt?(' · diajukan '+bpEsc(u.proposedAt)):'';
+  return '<div class="bptunggu">⏳ <b>'+bpEsc(c.brand)+' mengusulkan '+fmtRp(Number(u.budget)||0)+'</b>'+kapan+'.'
+    +'<br>Belum diputus — approve atau tolak di tab <b>Anggaran</b>. Budget yang dipakai masih yang lama.</div>';
+}
 function bpCardOf(brand,card){
   const rows=(agendaData&&agendaData.cardDetail)||[];
   return rows.find(x=>String(x.brand)===String(brand)&&String(x.card)===String(card))||null;
@@ -627,7 +643,8 @@ function bpSplitKey(ck){ const j=ck.indexOf('||'); return [ck.slice(0,j), ck.sli
 function bpSigOf(rows){
   const ag=((agendaData&&agendaData.agencyKartu)||[])
     .map(x=>[x.brand,x.card,x.agency,x.foto,x.video,x.design].join('|')).join(';')
-   +'#'+((agendaData&&agendaData.aktDetail)||[]).map(x=>[x.brand,x.card,x.act].join('|')).join(';');
+   +'#'+((agendaData&&agendaData.aktDetail)||[]).map(x=>[x.brand,x.card,x.act].join('|')).join(';')
+   +'#'+((agendaData&&agendaData.budgetOverrides)||[]).map(x=>[x.brand,x.card,x.status,x.budget].join('|')).join(';');
   return (rows||[]).map(r=>[r.brand,r.card,r.subtask,r.deadlineISO,r.nominal,r.status,r.catatan].join('')).join('')+'##'+ag;
 }
 // Bawa perubahan yang belum disimpan saat filter berubah, supaya ganti filter
@@ -699,6 +716,7 @@ function bpTile(c,i){
     +'<span class="bpb'+(tot&&done===tot?' g':'')+'">'+done+'/'+tot+' selesai</span>'
     +'<span class="bpb">'+fmtRp(pro)+'</span>'
     +(Number(c.akt)>0?('<span class="bpb g">aktual '+fmtRp(c.akt)+'</span>'):'')
+    +(bpUsulOf(c.brand,c.card)?'<span class="bpb w">usulan budget menunggu</span>':'')
     +(nonom?'<span class="bpb w">'+nonom+' tanpa nominal</span>':'')
     +(telat?'<span class="bpb b">'+telat+' lewat</span>':'')
     +(c.ag?'<span class="bpb">'+bpEsc(c.ag)+' '+((Number(c.foto)||0)+(Number(c.video)||0)+(Number(c.design)||0))+'</span>':'')
@@ -791,7 +809,8 @@ function bpAktHtml(c){
   return '<div class="bpsec"><div class="l">Anggaran</div>'
     +'<div class="bpag"><label>Aktual terpakai'
     +'<input id="bpAkt" class="agn" style="width:150px" value="'+(Number(c.akt)>0?fmtNum(c.akt):'')+'" placeholder="0"></label></div>'
-    +'<div class="muted" id="bpAktMeter" style="font-size:11.5px;margin-top:6px"></div></div>';
+    +'<div class="muted" id="bpAktMeter" style="font-size:11.5px;margin-top:6px"></div>'
+    +bpTungguHtml(c)+'</div>';
 }
 function bpMeterHtml(c){
   const est=bpEstOf(c.brand,c.card,c.bulan);
