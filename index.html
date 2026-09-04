@@ -479,6 +479,16 @@ const bpEsc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<
 const BP_ST=['Task Created','Checklist Created','In Progress','Done'];
 let bpData=null, bpSel=null, bpDrag=null, bpSig=null, bpSort='urut';
 
+// Nama subtask di sheet masih membawa tag "[DD MM] -" (kalau parser tanggalnya
+// gagal) dan "(Rp ...)". Yang ditampilkan cukup brief-nya; nama aslinya disimpan
+// di r.key sebagai identitas baris saat menyimpan override.
+function bpBrief(s){
+  const t=String(s||'')
+    .replace(/^\s*\[[^\]]*\]\s*[-\u2013\u2014]?\s*/, '')
+    .replace(/\(\s*(?:rp|idr)[^)]*\)/ig, '')
+    .replace(/\s{2,}/g,' ').trim();
+  return t || String(s||'').trim();
+}
 function bpBuild(rows){
   const map={};
   (rows||[]).forEach(x=>{
@@ -487,8 +497,9 @@ function bpBuild(rows){
     if(!map[key]) map[key]={brand:brand, card:card, bulan:String(x.bulan||''), bulan0:String(x.bulan||''), pic:String(x.pic||''), rows:[]};
     if(!map[key].bulan && x.bulan){ map[key].bulan=String(x.bulan); map[key].bulan0=String(x.bulan); }
     if(!map[key].pic && x.pic) map[key].pic=String(x.pic);
-    const sub=String(x.subtask||''), dl=String(x.deadlineISO||''), nom=Number(x.nominal)||0, st=statusLabel(x.status);
-    map[key].rows.push({sub:sub,sub0:sub,dl:dl,dl0:dl,nom:nom,nom0:nom,st:st,st0:st,baru:false});
+    const raw=String(x.subtask||''), sub=bpBrief(raw);
+    const dl=String(x.deadlineISO||''), nom=Number(x.nominal)||0, st=statusLabel(x.status);
+    map[key].rows.push({key:raw,raw:raw,sub:sub,sub0:sub,dl:dl,dl0:dl,nom:nom,nom0:nom,st:st,st0:st,baru:false});
   });
   // Kolom mengikuti bulan tanggal subtask paling awal; kalau tak ada tanggal, baru
   // jatuh ke nama list Trello. Tanpa ini kartu yang digeser bulannya balik ke kolom
@@ -517,7 +528,7 @@ function bpSnapshot(){
     if(c.bulan!==c.bulan0) bpEdits.bulan[ck]=c.bulan; else delete bpEdits.bulan[ck];
     c.rows.forEach(r=>{
       if(r.baru){ if(String(r.sub||'').trim()) baru.push({sub:r.sub,dl:r.dl,nom:r.nom,st:r.st}); return; }
-      const k=ck+'||'+r.sub0;
+      const k=ck+'||'+(r.key||r.sub0);
       if(bpRowDirty(r)) bpEdits.rows[k]={sub:r.sub,dl:r.dl,nom:r.nom,st:r.st}; else delete bpEdits.rows[k];
     });
     if(baru.length) bpEdits.baru[ck]=baru; else delete bpEdits.baru[ck];
@@ -528,10 +539,10 @@ function bpApplyEdits(next){
     const ck=c.brand+'||'+c.card;
     if(bpEdits.bulan[ck]) c.bulan=bpEdits.bulan[ck];
     c.rows.forEach(r=>{
-      const e=bpEdits.rows[ck+'||'+r.sub0];
+      const e=bpEdits.rows[ck+'||'+(r.key||r.sub0)];
       if(e){ r.sub=e.sub; r.dl=e.dl; r.nom=e.nom; r.st=e.st; }
     });
-    (bpEdits.baru[ck]||[]).forEach(b=>c.rows.push({sub:b.sub,sub0:'',dl:b.dl,dl0:'',nom:b.nom,nom0:0,st:b.st,st0:'',baru:true}));
+    (bpEdits.baru[ck]||[]).forEach(b=>c.rows.push({key:'',raw:'',sub:b.sub,sub0:'',dl:b.dl,dl0:'',nom:b.nom,nom0:0,st:b.st,st0:'',baru:true}));
   });
   return next;
 }
@@ -654,12 +665,15 @@ function bpRowHtml(r,idx){
   const s=bpSisa(r.dl), warn=!r.dl||!(Number(r.nom)>0);
   return '<div class="bprow'+(warn?' warn':'')+'" data-bpr="'+idx+'">'
     +'<div class="g1">'
-    +'<input class="ps" value="'+bpEsc(r.sub)+'" placeholder="Nama subtask">'
+    +'<input class="ps" value="'+bpEsc(r.sub)+'" placeholder="Nama subtask"'
+    +(r.baru?'':' readonly title="Nama subtask ikut Trello — yang bisa diubah di sini tanggal, nominal, dan status."')+'>'
     +'<input class="pd" type="date" value="'+bpEsc(r.dl)+'">'
     +'<input class="pn" value="'+(Number(r.nom)>0?fmtNum(r.nom):'')+'" placeholder="0">'
     +'<select class="pst">'+BP_ST.map(o=>'<option'+(o===r.st?' selected':'')+'>'+o+'</option>').join('')+'</select>'
     +'<button class="del" data-bpdel="'+idx+'" title="Hapus baris">&times;</button></div>'
-    +'<div class="gen">akan ditulis: <code>'+bpEsc(bpNama(r.sub,r.dl,r.nom))+'</code>'
+    +'<div class="gen">'+(r.baru
+       ? ('akan ditulis: <code>'+bpEsc(bpNama(r.sub,r.dl,r.nom))+'</code>')
+       : ('dari Trello: <code>'+bpEsc(r.raw||r.sub)+'</code>'))
     +(s===null?' · tanpa tanggal':(' · '+(s<0?((-s)+' hari lewat'):(s+' hari lagi'))))+'</div></div>';
 }
 function bpDrawHtml(c){
@@ -698,7 +712,8 @@ function bpWireRows(c){
     const r=c.rows[+el.dataset.bpr]; if(!r) return;
     const gen=el.querySelector('.gen code');
     const upd=()=>{ gen.textContent=bpNama(r.sub,r.dl,r.nom); bpDock(); };
-    el.querySelector('.ps').oninput=e=>{ r.sub=e.target.value; upd(); };
+    const nm=el.querySelector('.ps');
+    if(r.baru) nm.oninput=e=>{ r.sub=e.target.value; upd(); };
     el.querySelector('.pd').onchange=e=>{ r.dl=e.target.value; bpRefreshRows(c); };
     el.querySelector('.pst').onchange=e=>{ r.st=e.target.value; bpDock(); };
     el.querySelector('.pn').onblur=e=>{ const v=bpRp(e.target.value); r.nom=v; e.target.value=v?fmtNum(v):''; upd(); };
@@ -722,7 +737,7 @@ function bpWireDraw(c){
   $('#bpMon').onchange=e=>{ bpGeser(c,e.target.value); bpOpenCard(bpSel); };
   $('#bpAdd').onclick=()=>{
     const last=c.rows[c.rows.length-1];
-    c.rows.push({sub:'',sub0:'',dl:(last&&last.dl)||'',dl0:'',nom:0,nom0:0,st:'Task Created',st0:'',baru:true});
+    c.rows.push({key:'',raw:'',sub:'',sub0:'',dl:(last&&last.dl)||'',dl0:'',nom:0,nom0:0,st:'Task Created',st0:'',baru:true});
     bpRefreshRows(c);
     const inp=document.querySelectorAll('#bpRows .ps'); if(inp.length) inp[inp.length-1].focus();
   };
