@@ -438,7 +438,7 @@ function renderAgenda(){
   $('#fStatus').onchange=e=>{f.status=e.target.value;renderAgenda();};
   $('#agTabList').onclick=()=>{agView='list';renderAgenda();};
   $('#agTabTl').onclick=()=>{agView='timeline';renderAgenda();};
-  $('#agTabPapan').onclick=()=>{agView='papan';bpData=null;renderAgenda();};
+  $('#agTabPapan').onclick=()=>{agView='papan';renderAgenda();};
   if(agView==='papan') wireAgendaPapanBOD();
   if($('#thCard')) $('#thCard').onclick=()=>{ agendaSort = agendaSort===1 ? -1 : (agendaSort===-1 ? 0 : 1); renderAgenda(); };
   if(agView==='timeline'){
@@ -461,7 +461,7 @@ function agScopeTabsBOD(){
 /* ═══ Papan BOD — kanban agenda per bulan, semua brand ═══ */
 const bpEsc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const BP_ST=['Task Created','Checklist Created','In Progress','Done'];
-let bpData=null, bpSel=null, bpDrag=null;
+let bpData=null, bpSel=null, bpDrag=null, bpSig=null;
 
 function bpBuild(rows){
   const map={};
@@ -474,11 +474,80 @@ function bpBuild(rows){
     const sub=String(x.subtask||''), dl=String(x.deadlineISO||''), nom=Number(x.nominal)||0, st=statusLabel(x.status);
     map[key].rows.push({sub:sub,sub0:sub,dl:dl,dl0:dl,nom:nom,nom0:nom,st:st,st0:st,baru:false});
   });
-  return Object.keys(map).map(k=>map[k]);
+  // Kolom mengikuti bulan tanggal subtask paling awal; kalau tak ada tanggal, baru
+  // jatuh ke nama list Trello. Tanpa ini kartu yang digeser bulannya balik ke kolom
+  // lama begitu halaman dimuat ulang.
+  return Object.keys(map).map(k=>{
+    const c=map[k], dls=c.rows.map(r=>r.dl).filter(Boolean).sort();
+    if(dls.length){ c.bulan=MONTHS[+dls[0].slice(5,7)-1]||c.bulan; c.bulan0=c.bulan; }
+    return c;
+  });
 }
 const bpRowDirty=r=>!!(r.baru||r.sub!==r.sub0||r.dl!==r.dl0||Number(r.nom)!==Number(r.nom0)||r.st!==r.st0);
 const bpCardDirty=c=>!!(c.bulan!==c.bulan0||c.rows.some(bpRowDirty));
-const bpDirtyN=()=>(bpData||[]).reduce((n,c)=>n+(bpCardDirty(c)?1:0),0);
+function bpDirtyN(){
+  const ks={};
+  Object.keys(bpEdits.rows).forEach(k=>{ const i=k.lastIndexOf('||'); ks[k.slice(0,i)]=1; });
+  Object.keys(bpEdits.bulan).forEach(k=>ks[k]=1);
+  Object.keys(bpEdits.baru).forEach(k=>ks[k]=1);
+  return Object.keys(ks).length;
+}
+let bpEdits={rows:{},bulan:{},baru:{}};
+// Perubahan disimpan di luar bpData supaya tidak hilang saat filter berubah
+// (kartu yang tersaring keluar tetap ikut tersimpan).
+function bpSnapshot(){
+  (bpData||[]).forEach(c=>{
+    const ck=c.brand+'||'+c.card, baru=[];
+    if(c.bulan!==c.bulan0) bpEdits.bulan[ck]=c.bulan; else delete bpEdits.bulan[ck];
+    c.rows.forEach(r=>{
+      if(r.baru){ if(String(r.sub||'').trim()) baru.push({sub:r.sub,dl:r.dl,nom:r.nom,st:r.st}); return; }
+      const k=ck+'||'+r.sub0;
+      if(bpRowDirty(r)) bpEdits.rows[k]={sub:r.sub,dl:r.dl,nom:r.nom,st:r.st}; else delete bpEdits.rows[k];
+    });
+    if(baru.length) bpEdits.baru[ck]=baru; else delete bpEdits.baru[ck];
+  });
+}
+function bpApplyEdits(next){
+  (next||[]).forEach(c=>{
+    const ck=c.brand+'||'+c.card;
+    if(bpEdits.bulan[ck]) c.bulan=bpEdits.bulan[ck];
+    c.rows.forEach(r=>{
+      const e=bpEdits.rows[ck+'||'+r.sub0];
+      if(e){ r.sub=e.sub; r.dl=e.dl; r.nom=e.nom; r.st=e.st; }
+    });
+    (bpEdits.baru[ck]||[]).forEach(b=>c.rows.push({sub:b.sub,sub0:'',dl:b.dl,dl0:'',nom:b.nom,nom0:0,st:b.st,st0:'',baru:true}));
+  });
+  return next;
+}
+function bpSplitKey(ck){ const j=ck.indexOf('||'); return [ck.slice(0,j), ck.slice(j+2)]; }
+function bpSigOf(rows){
+  return (rows||[]).map(r=>[r.brand,r.card,r.subtask,r.deadlineISO,r.nominal,r.status].join('')).join('');
+}
+// Bawa perubahan yang belum disimpan saat filter berubah, supaya ganti filter
+// tidak diam-diam membuang isian yang sudah diketik.
+function bpCarry(prev, next){
+  if(!prev) return next;
+  const edit={}, tambahan={};
+  prev.forEach(c=>{
+    const ck=c.brand+'||'+c.card;
+    if(c.bulan!==c.bulan0) edit['#'+ck]=c.bulan;
+    c.rows.forEach(r=>{
+      if(!bpRowDirty(r)) return;
+      if(r.baru) (tambahan[ck]=tambahan[ck]||[]).push(r);
+      else edit[ck+'||'+r.sub0]=r;
+    });
+  });
+  next.forEach(c=>{
+    const ck=c.brand+'||'+c.card;
+    if(edit['#'+ck]) c.bulan=edit['#'+ck];
+    c.rows.forEach(r=>{
+      const e=edit[ck+'||'+r.sub0];
+      if(e){ r.sub=e.sub; r.dl=e.dl; r.nom=e.nom; r.st=e.st; }
+    });
+    (tambahan[ck]||[]).forEach(r=>c.rows.push(r));
+  });
+  return next;
+}
 function bpSisa(iso){
   if(!iso) return null;
   const p=iso.split('-').map(Number), t=new Date(); t.setHours(0,0,0,0);
@@ -529,7 +598,10 @@ function bpBoardHtml(){
   }).join('');
 }
 function renderAgendaPapanBOD(rows){
-  if(!bpData) bpData=bpBuild(rows);
+  // Bangun ulang setiap kali baris hasil filter berubah — kalau tidak, papan
+  // tetap menampilkan brand/bulan lama padahal filternya sudah diganti.
+  const sig=bpSigOf(rows);
+  if(bpData===null || bpSig!==sig){ bpSnapshot(); bpData=bpApplyEdits(bpBuild(rows)); bpSig=sig; }
   return '<div class="note" style="margin:8px 0">🗂 Kolom mengikuti list bulan di board Trello tiap brand. '
     +'<b>Seret kartu</b> antar bulan untuk menjadwalkan ulang, <b>klik kartu</b> untuk membereskan tanggal, nominal, dan status subtask. '
     +'Perubahan dari sini langsung berlaku dan mengalahkan Trello.</div>'
@@ -539,6 +611,7 @@ function renderAgendaPapanBOD(rows){
     +'<div class="bppapan" id="bpBoard">'+bpBoardHtml()+'</div><div id="bpDrawHost"></div>';
 }
 function bpDock(){
+  bpSnapshot();
   const b=$('#bpSave'), c=$('#bpDirty'), r=$('#bpReset'); if(!b) return;
   const n=bpDirtyN();
   b.disabled=n===0; c.textContent=n?(n+' kartu diubah'):''; r.style.display=n?'':'none';
@@ -651,13 +724,16 @@ function bpWireBoard(){
   };
 }
 async function bpSimpan(){
+  bpSnapshot();
   const perBrand={};
-  (bpData||[]).forEach(c=>c.rows.forEach(r=>{
-    if(!bpRowDirty(r)) return;
-    if(!String(r.sub||'').trim()) return;
-    (perBrand[c.brand]=perBrand[c.brand]||[]).push({card:c.card, subtask:r.sub, deadline:r.dl,
-      nominal:Number(r.nom)||0, status:r.st});
-  }));
+  const tambah=(ck,e)=>{
+    if(!String(e.sub||'').trim()) return;
+    const br=bpSplitKey(ck);
+    (perBrand[br[0]]=perBrand[br[0]]||[]).push({card:br[1], subtask:e.sub, deadline:e.dl,
+      nominal:Number(e.nom)||0, status:e.st});
+  };
+  Object.keys(bpEdits.rows).forEach(k=>{ const i=k.lastIndexOf('||'); tambah(k.slice(0,i), bpEdits.rows[k]); });
+  Object.keys(bpEdits.baru).forEach(ck=>bpEdits.baru[ck].forEach(b=>tambah(ck,b)));
   const brands=Object.keys(perBrand);
   if(!brands.length){ alert('Tidak ada perubahan.'); return; }
   const b=$('#bpSave'); b.disabled=true; b.textContent='Menyimpan…';
@@ -673,14 +749,15 @@ async function bpSimpan(){
   b.textContent='💾 Simpan Semua';
   if(gagal.length) alert('Sebagian gagal —\n'+gagal.join('\n'));
   else alert('✅ '+ok+' baris tersimpan — langsung berlaku.');
+  bpEdits={rows:{},bulan:{},baru:{}};
   try{ const rr=await fetch(APPS_SCRIPT_URL+'?action=getAgenda'+PW()); agendaData=await rr.json(); }catch(e){}
-  bpData=null; renderAgenda();
+  bpData=null; bpSig=null; renderAgenda();
 }
 function wireAgendaPapanBOD(){
   bpWireBoard(); bpDock();
   const s=$('#bpSave'), r=$('#bpReset');
   if(s) s.onclick=bpSimpan;
-  if(r) r.onclick=()=>{ bpData=null; renderAgenda(); };
+  if(r) r.onclick=()=>{ bpEdits={rows:{},bulan:{},baru:{}}; bpData=null; bpSig=null; renderAgenda(); };
 }
 
 function renderAgendaTimelineBOD(rows){
