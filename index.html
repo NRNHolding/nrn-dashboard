@@ -461,7 +461,7 @@ function agScopeTabsBOD(){
 /* ═══ Papan BOD — kanban agenda per bulan, semua brand ═══ */
 const bpEsc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const BP_ST=['Task Created','Checklist Created','In Progress','Done'];
-let bpData=null, bpSel=null, bpDrag=null, bpSig=null;
+let bpData=null, bpSel=null, bpDrag=null, bpSig=null, bpSort='urut';
 
 function bpBuild(rows){
   const map={};
@@ -566,6 +566,20 @@ function bpRp(s){
   }
   return Number(t.replace(/[^0-9]/g,''))||0;
 }
+const BP_SORT_LBL={urut:'Bawaan',tertinggal:'Paling tertinggal',selesai:'Paling selesai'};
+// Urutkan kartu di dalam tiap kolom berdasarkan penyelesaian (done / total subtask).
+function bpUrut(list){
+  if(bpSort==='urut') return list;
+  const rasio=p=>{ const c=p[0], tot=c.rows.length||1;
+    return c.rows.filter(r=>r.st==='Done').length/tot; };
+  const telat=p=>p[0].rows.filter(r=>{const d=bpSisa(r.dl);return r.st!=='Done'&&d!==null&&d<0;}).length;
+  return list.slice().sort((a,b)=>{
+    const d=(rasio(a)-rasio(b))*(bpSort==='tertinggal'?1:-1);
+    if(d) return d;
+    const t=telat(b)-telat(a); if(t) return t;
+    return String(a[0].card).localeCompare(String(b[0].card));
+  });
+}
 function bpTile(c,i){
   const tot=c.rows.length, done=c.rows.filter(r=>r.st==='Done').length;
   const nonom=c.rows.filter(r=>!(Number(r.nom)>0)).length;
@@ -593,7 +607,7 @@ function bpBoardHtml(){
     return '<section class="bpcol'+(quiet?' quiet':'')+(M===kini?' now':'')+'" data-bpcol="'+bpEsc(M)+'">'
       +'<div class="bphd"><b>'+bpEsc(M)+'</b><span class="n">'+list.length+'</span>'
       +(quiet?'':'<span class="s">'+fmtRp(pro)+'</span>')+'</div>'
-      +'<div class="bpstack">'+(list.map(p=>bpTile(p[0],p[1])).join('')
+      +'<div class="bpstack">'+(bpUrut(list).map(p=>bpTile(p[0],p[1])).join('')
         ||'<div class="bpempty">seret ke sini</div>')+'</div></section>';
   }).join('');
 }
@@ -607,7 +621,10 @@ function renderAgendaPapanBOD(rows){
     +'Perubahan dari sini langsung berlaku dan mengalahkan Trello.</div>'
     +'<div class="toolbar" style="margin-bottom:8px"><button class="tab" id="bpSave" disabled>💾 Simpan Semua</button>'
     +'<span class="lbl" id="bpDirty"></span>'
-    +'<button class="tab" id="bpReset" style="display:none">↺ Batalkan perubahan</button></div>'
+    +'<button class="tab" id="bpReset" style="display:none">↺ Batalkan perubahan</button>'
+    +'<span style="flex:1"></span><span class="lbl">Urutkan</span>'
+    +['urut','tertinggal','selesai'].map(k=>'<button class="tab'+(bpSort===k?' on':'')
+      +'" data-bpsort="'+k+'">'+BP_SORT_LBL[k]+'</button>').join('')+'</div>'
     +'<div class="bppapan" id="bpBoard">'+bpBoardHtml()+'</div><div id="bpDrawHost"></div>';
 }
 function bpDock(){
@@ -755,6 +772,7 @@ async function bpSimpan(){
 }
 function wireAgendaPapanBOD(){
   bpWireBoard(); bpDock();
+  document.querySelectorAll('[data-bpsort]').forEach(b=>b.onclick=()=>{ bpSort=b.dataset.bpsort; renderAgenda(); });
   const s=$('#bpSave'), r=$('#bpReset');
   if(s) s.onclick=bpSimpan;
   if(r) r.onclick=()=>{ bpEdits={rows:{},bulan:{},baru:{}}; bpData=null; bpSig=null; renderAgenda(); };
