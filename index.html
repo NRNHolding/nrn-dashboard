@@ -50,6 +50,10 @@
 .bpsec{margin-bottom:16px}
 .bpsec>.l{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin-bottom:7px}
 .bpsec select{padding:6px 9px;border:1px solid var(--cream2);border-radius:8px;background:var(--white);color:var(--text);font-size:12.5px}
+.bpsec .agn{width:74px;text-align:right;padding:6px 9px;border:1px solid var(--cream2);border-radius:8px;background:var(--white);color:var(--text);font-size:12.5px}
+.bpsec .agn:disabled{opacity:.45}
+.bpag{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.bpag label{display:flex;gap:5px;align-items:center;font-size:11.5px;color:var(--text2)}
 .bpchips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
 .bprow{border:1px solid var(--cream2);border-radius:9px;background:var(--cream);padding:7px 8px;margin-bottom:6px}
 .bprow.warn{border-color:var(--gold)}
@@ -58,6 +62,16 @@
 .bprow input.pn{text-align:right}
 .bprow .del{background:none;border:0;color:var(--text3);cursor:pointer;font-size:15px;padding:0}
 .bprow .del:hover{color:var(--red)}
+.bpdet{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:7px 12px}
+.bpdet .it{min-width:0}
+.bpdet .k{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.bpdet .v{font-size:12.5px;color:var(--text);word-break:break-word}
+.bpdet .v.kosong{color:var(--text3)}
+.bpdlink{display:inline-block;margin-top:9px;font-size:11.5px}
+.bprow .cat{margin-top:5px;display:flex;gap:5px;align-items:center}
+.bprow .cat .ic{font-size:11px;color:var(--text3);flex:0 0 auto}
+.bprow input.pc{font-size:11.5px}
+.bprow.adacat{border-color:var(--gold);background:#fffaf0}
 .bprow .gen{margin-top:5px;font-size:10px;color:var(--text3);word-break:break-word}
 .bprow .gen code{background:var(--white);padding:1px 4px;border-radius:4px}
 @media(max-width:640px){.bprow .g1{grid-template-columns:1fr 1fr;gap:5px}.bpcol{flex-basis:230px}}
@@ -479,6 +493,50 @@ const bpEsc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<
 const BP_ST=['Task Created','Checklist Created','In Progress','Done'];
 let bpData=null, bpSel=null, bpDrag=null, bpSig=null, bpSort='urut';
 
+// Agency per kartu. Kosong = dikerjakan sendiri, tanpa agency.
+// Design dikerjakan Akronim; foto & video oleh Tenshi Studio atau Holding.
+const BP_AG=['Tenshi Studio','Akronim','Holding'];
+function bpCardOf(brand,card){
+  const rows=(agendaData&&agendaData.cardDetail)||[];
+  return rows.find(x=>String(x.brand)===String(brand)&&String(x.card)===String(card))||null;
+}
+// Isian deskripsi kartu Trello, read-only. Yang kosong tetap ditulis '—'
+// supaya kelihatan mana yang belum diisi brand di Trello.
+function bpDetHtml(c){
+  const d=bpCardOf(c.brand,c.card);
+  if(!d) return '<div class="bpsec"><div class="l">Detail kartu (Trello)</div>'
+    +'<div class="muted" style="font-size:11.5px">Kartu ini belum ada di Task Database — kemungkinan dibuat dari hub, bukan dari Trello.</div></div>';
+  const rp=v=>Number(v)>0?fmtRp(Number(v)):'';
+  const it=(k,v)=>'<div class="it"><div class="k">'+k+'</div><div class="v'+(v?'':' kosong')+'">'+(v?bpEsc(String(v)):'—')+'</div></div>';
+  const out=[
+    it('PIC', d.pic), it('Prioritas', d.prioritas), it('Kategori', d.kategori),
+    it('Status', d.status), it('List Trello', d.list), it('Progress', d.progress),
+    it('Deadline kartu', d.deadline), it('Agency (Trello)', d.agency),
+    it('Estimated Budget', rp(d.est)), it('Actual Budget', rp(d.act)),
+    it('Content Photo', d.foto||''), it('Content Video', d.video||''),
+    it('Design Output', d.design||''), it('Product Launch', d.produk||''),
+    it('Collection Launch', d.koleksi||''),
+  ].join('');
+  return '<div class="bpsec"><div class="l">Detail kartu (Trello)</div>'
+    +'<div class="bpdet">'+out+'</div>'
+    +(/^https?:\/\//i.test(d.url||'')?('<a class="bpdlink" href="'+bpEsc(d.url)+'" target="_blank" rel="noopener">↗ Buka kartu di Trello</a>'):'')
+    +'<div class="muted" style="font-size:10.5px;margin-top:6px">Angka di atas ikut deskripsi kartu Trello'
+    +(d.sync?(' · sync terakhir '+bpEsc(d.sync)):'')+'. Yang bisa diubah dari sini: aktual &amp; output agency.</div></div>';
+}
+function bpAktOf(brand,card){
+  const rows=(agendaData&&agendaData.aktDetail)||[];
+  return rows.find(x=>String(x.brand)===String(brand)&&String(x.card)===String(card))||null;
+}
+function bpEstOf(brand,card,bulan){
+  const rows=(agendaData&&agendaData.estDetail)||[];
+  const d=rows.find(x=>String(x.brand)===String(brand)&&String(x.card)===String(card)&&(!bulan||String(x.month)===String(bulan)));
+  return d?Number(d.est)||0:0;
+}
+function bpAgOf(brand,card){
+  const rows=(agendaData&&agendaData.agencyKartu)||[];
+  return rows.find(x=>String(x.brand)===String(brand)&&String(x.card)===String(card))||null;
+}
+
 // Nama subtask di sheet masih membawa tag "[DD MM] -" (kalau parser tanggalnya
 // gagal) dan "(Rp ...)". Yang ditampilkan cukup brief-nya; nama aslinya disimpan
 // di r.key sebagai identitas baris saat menyimpan override.
@@ -499,7 +557,8 @@ function bpBuild(rows){
     if(!map[key].pic && x.pic) map[key].pic=String(x.pic);
     const raw=String(x.subtask||''), sub=bpBrief(raw);
     const dl=String(x.deadlineISO||''), nom=Number(x.nominal)||0, st=statusLabel(x.status);
-    map[key].rows.push({key:raw,raw:raw,sub:sub,sub0:sub,dl:dl,dl0:dl,nom:nom,nom0:nom,st:st,st0:st,baru:false});
+    const cat=String(x.catatan||'');
+    map[key].rows.push({key:raw,raw:raw,sub:sub,sub0:sub,dl:dl,dl0:dl,nom:nom,nom0:nom,st:st,st0:st,cat:cat,cat0:cat,baru:false});
   });
   // Kolom mengikuti bulan tanggal subtask paling awal; kalau tak ada tanggal, baru
   // jatuh ke nama list Trello. Tanpa ini kartu yang digeser bulannya balik ke kolom
@@ -507,19 +566,29 @@ function bpBuild(rows){
   return Object.keys(map).map(k=>{
     const c=map[k], dls=c.rows.map(r=>r.dl).filter(Boolean).sort();
     if(dls.length){ c.bulan=MONTHS[+dls[0].slice(5,7)-1]||c.bulan; c.bulan0=c.bulan; }
+    c.tahun=dls.length?dls[0].slice(0,4):String(new Date().getFullYear());
+    const a=bpAgOf(c.brand,c.card)||{};
+    c.ag=String(a.agency||''); c.foto=Number(a.foto)||0; c.video=Number(a.video)||0; c.design=Number(a.design)||0;
+    c.ag0=c.ag; c.foto0=c.foto; c.video0=c.video; c.design0=c.design;
+    const ak=bpAktOf(c.brand,c.card)||{};
+    c.akt=Number(ak.act)||0; c.akt0=c.akt;
     return c;
   });
 }
-const bpRowDirty=r=>!!(r.baru||r.sub!==r.sub0||r.dl!==r.dl0||Number(r.nom)!==Number(r.nom0)||r.st!==r.st0);
-const bpCardDirty=c=>!!(c.bulan!==c.bulan0||c.rows.some(bpRowDirty));
+const bpRowDirty=r=>!!(r.baru||r.sub!==r.sub0||r.dl!==r.dl0||Number(r.nom)!==Number(r.nom0)||r.st!==r.st0||String(r.cat||'')!==String(r.cat0||''));
+const bpAgDirty=c=>!!(c.ag!==c.ag0||Number(c.foto)!==Number(c.foto0)||Number(c.video)!==Number(c.video0)||Number(c.design)!==Number(c.design0));
+const bpAktDirty=c=>Number(c.akt||0)!==Number(c.akt0||0);
+const bpCardDirty=c=>!!(c.bulan!==c.bulan0||bpAgDirty(c)||bpAktDirty(c)||c.rows.some(bpRowDirty));
 function bpDirtyN(){
   const ks={};
   Object.keys(bpEdits.rows).forEach(k=>{ const i=k.lastIndexOf('||'); ks[k.slice(0,i)]=1; });
   Object.keys(bpEdits.bulan).forEach(k=>ks[k]=1);
   Object.keys(bpEdits.baru).forEach(k=>ks[k]=1);
+  Object.keys(bpEdits.ag).forEach(k=>ks[k]=1);
+  Object.keys(bpEdits.akt).forEach(k=>ks[k]=1);
   return Object.keys(ks).length;
 }
-let bpEdits={rows:{},bulan:{},baru:{}};
+let bpEdits={rows:{},bulan:{},baru:{},ag:{},akt:{}};
 // Perubahan disimpan di luar bpData supaya tidak hilang saat filter berubah
 // (kartu yang tersaring keluar tetap ikut tersimpan).
 function bpSnapshot(){
@@ -527,11 +596,15 @@ function bpSnapshot(){
     const ck=c.brand+'||'+c.card, baru=[];
     if(c.bulan!==c.bulan0) bpEdits.bulan[ck]=c.bulan; else delete bpEdits.bulan[ck];
     c.rows.forEach(r=>{
-      if(r.baru){ if(String(r.sub||'').trim()) baru.push({sub:r.sub,dl:r.dl,nom:r.nom,st:r.st}); return; }
+      if(r.baru){ if(String(r.sub||'').trim()) baru.push({sub:r.sub,dl:r.dl,nom:r.nom,st:r.st,cat:r.cat}); return; }
       const k=ck+'||'+(r.key||r.sub0);
-      if(bpRowDirty(r)) bpEdits.rows[k]={sub:r.sub,dl:r.dl,nom:r.nom,st:r.st}; else delete bpEdits.rows[k];
+      if(bpRowDirty(r)) bpEdits.rows[k]={sub:r.sub,dl:r.dl,nom:r.nom,st:r.st,cat:r.cat}; else delete bpEdits.rows[k];
     });
     if(baru.length) bpEdits.baru[ck]=baru; else delete bpEdits.baru[ck];
+    if(bpAgDirty(c)) bpEdits.ag[ck]={bulan:c.bulan,tahun:c.tahun,agency:c.ag,foto:c.foto,video:c.video,design:c.design};
+    else delete bpEdits.ag[ck];
+    if(bpAktDirty(c)) bpEdits.akt[ck]={bulan:c.bulan,tahun:c.tahun,aktual:Number(c.akt)||0};
+    else delete bpEdits.akt[ck];
   });
 }
 function bpApplyEdits(next){
@@ -540,15 +613,22 @@ function bpApplyEdits(next){
     if(bpEdits.bulan[ck]) c.bulan=bpEdits.bulan[ck];
     c.rows.forEach(r=>{
       const e=bpEdits.rows[ck+'||'+(r.key||r.sub0)];
-      if(e){ r.sub=e.sub; r.dl=e.dl; r.nom=e.nom; r.st=e.st; }
+      if(e){ r.sub=e.sub; r.dl=e.dl; r.nom=e.nom; r.st=e.st; r.cat=e.cat||''; }
     });
-    (bpEdits.baru[ck]||[]).forEach(b=>c.rows.push({key:'',raw:'',sub:b.sub,sub0:'',dl:b.dl,dl0:'',nom:b.nom,nom0:0,st:b.st,st0:'',baru:true}));
+    (bpEdits.baru[ck]||[]).forEach(b=>c.rows.push({key:'',raw:'',sub:b.sub,sub0:'',dl:b.dl,dl0:'',nom:b.nom,nom0:0,st:b.st,st0:'',cat:b.cat||'',cat0:'',baru:true}));
+    const a=bpEdits.ag[ck];
+    if(a){ c.ag=a.agency; c.foto=a.foto; c.video=a.video; c.design=a.design; }
+    const k2=bpEdits.akt[ck];
+    if(k2) c.akt=Number(k2.aktual)||0;
   });
   return next;
 }
 function bpSplitKey(ck){ const j=ck.indexOf('||'); return [ck.slice(0,j), ck.slice(j+2)]; }
 function bpSigOf(rows){
-  return (rows||[]).map(r=>[r.brand,r.card,r.subtask,r.deadlineISO,r.nominal,r.status].join('')).join('');
+  const ag=((agendaData&&agendaData.agencyKartu)||[])
+    .map(x=>[x.brand,x.card,x.agency,x.foto,x.video,x.design].join('|')).join(';')
+   +'#'+((agendaData&&agendaData.aktDetail)||[]).map(x=>[x.brand,x.card,x.act].join('|')).join(';');
+  return (rows||[]).map(r=>[r.brand,r.card,r.subtask,r.deadlineISO,r.nominal,r.status,r.catatan].join('')).join('')+'##'+ag;
 }
 // Bawa perubahan yang belum disimpan saat filter berubah, supaya ganti filter
 // tidak diam-diam membuang isian yang sudah diketik.
@@ -618,8 +698,10 @@ function bpTile(c,i){
     +'<span class="bs">'
     +'<span class="bpb'+(tot&&done===tot?' g':'')+'">'+done+'/'+tot+' selesai</span>'
     +'<span class="bpb">'+fmtRp(pro)+'</span>'
+    +(Number(c.akt)>0?('<span class="bpb g">aktual '+fmtRp(c.akt)+'</span>'):'')
     +(nonom?'<span class="bpb w">'+nonom+' tanpa nominal</span>':'')
     +(telat?'<span class="bpb b">'+telat+' lewat</span>':'')
+    +(c.ag?'<span class="bpb">'+bpEsc(c.ag)+' '+((Number(c.foto)||0)+(Number(c.video)||0)+(Number(c.design)||0))+'</span>':'')
     +(bpCardDirty(c)?'<span class="bpb e">diubah</span>':'')
     +'</span></button>';
 }
@@ -663,7 +745,7 @@ function bpDock(){
 function bpRedraw(){ const b=$('#bpBoard'); if(!b) return; b.innerHTML=bpBoardHtml(); bpDock(); }
 function bpRowHtml(r,idx){
   const s=bpSisa(r.dl), warn=!r.dl||!(Number(r.nom)>0);
-  return '<div class="bprow'+(warn?' warn':'')+'" data-bpr="'+idx+'">'
+  return '<div class="bprow'+(warn?' warn':'')+(String(r.cat||'').trim()?' adacat':'')+'" data-bpr="'+idx+'">'
     +'<div class="g1">'
     +'<input class="ps" value="'+bpEsc(r.sub)+'" placeholder="Nama subtask"'
     +(r.baru?'':' readonly title="Nama subtask ikut Trello — yang bisa diubah di sini tanggal, nominal, dan status."')+'>'
@@ -671,6 +753,8 @@ function bpRowHtml(r,idx){
     +'<input class="pn" value="'+(Number(r.nom)>0?fmtNum(r.nom):'')+'" placeholder="0">'
     +'<select class="pst">'+BP_ST.map(o=>'<option'+(o===r.st?' selected':'')+'>'+o+'</option>').join('')+'</select>'
     +'<button class="del" data-bpdel="'+idx+'" title="Hapus baris">&times;</button></div>'
+    +'<div class="cat"><span class="ic">📝</span>'
+    +'<input class="pc" value="'+bpEsc(r.cat||'')+'" placeholder="Catatan — kendala, mundur berapa lama, alasannya…"></div>'
     +'<div class="gen">'+(r.baru
        ? ('akan ditulis: <code>'+bpEsc(bpNama(r.sub,r.dl,r.nom))+'</code>')
        : ('dari Trello: <code>'+bpEsc(r.raw||r.sub)+'</code>'))
@@ -685,6 +769,8 @@ function bpDrawHtml(c){
     +'<div class="bpsec"><div class="l">Bulan (list Trello)</div>'
     +'<select id="bpMon">'+MONTHS.map(m=>'<option'+(m===c.bulan?' selected':'')+'>'+m+'</option>').join('')+'</select>'
     +'<div class="muted" style="font-size:11.5px;margin-top:5px">Mengubah ini menggeser semua tanggal subtask sebanyak selisih bulannya.</div></div>'
+    +bpAktHtml(c)
+    +bpAgHtml(c)
     +'<div class="bpsec"><div class="l">Checklist · '+c.rows.length+' baris</div>'
     +'<div class="bpchips"><button class="tab" id="bpAdd">+ Baris</button>'
     +'<button class="tab" data-bpb="7">Semua +7 hari</button>'
@@ -693,8 +779,62 @@ function bpDrawHtml(c){
     +'<div id="bpRows">'+c.rows.map((r,i)=>bpRowHtml(r,i)).join('')+'</div>'
     +'<div class="muted" style="font-size:11.5px;margin-top:7px">Total proyeksi kartu ini <b>'+fmtRp(pro)+'</b>. '
     +'Nominal menerima <b>1,5jt</b>, <b>500rb</b>, atau <b>1.500.000</b>.</div></div>'
+    +bpDetHtml(c)
     +'</div><div class="f"><button class="tab" data-bpclose>Tutup</button><span style="flex:1"></span>'
     +'<button class="tab on" id="bpDone">Selesai</button></div></aside>';
+}
+// Satu kartu = satu agency. Semua output 0 -> agency boleh kosong (dikerjakan
+// sendiri). Begitu ada output, agency wajib dipilih.
+// Budget disepakati datang dari Trello/approval BOD, jadi di sini cuma dibaca.
+// Yang bisa diisi realisasinya, supaya selisihnya kelihatan tanpa buka sheet.
+function bpAktHtml(c){
+  return '<div class="bpsec"><div class="l">Anggaran</div>'
+    +'<div class="bpag"><label>Aktual terpakai'
+    +'<input id="bpAkt" class="agn" style="width:150px" value="'+(Number(c.akt)>0?fmtNum(c.akt):'')+'" placeholder="0"></label></div>'
+    +'<div class="muted" id="bpAktMeter" style="font-size:11.5px;margin-top:6px"></div></div>';
+}
+function bpMeterHtml(c){
+  const est=bpEstOf(c.brand,c.card,c.bulan);
+  const pro=c.rows.reduce((s,r)=>s+(Number(r.nom)||0),0);
+  const akt=Number(c.akt)||0, b=[];
+  b.push(est?('Budget <b>'+fmtRp(est)+'</b>'):'Budget belum diisi');
+  b.push('Proyeksi <b>'+fmtRp(pro)+'</b>'+(est?(' ('+Math.round(pro/est*100)+'%)'):''));
+  b.push(akt?('Aktual <b>'+fmtRp(akt)+'</b>'+(est?(' ('+Math.round(akt/est*100)+'%)'):'')):'Aktual belum diisi');
+  let ekor='';
+  if(est){
+    const pakai=akt||pro, lebih=pakai-est;
+    ekor = lebih>0 ? ('<br><b style="color:var(--red)">Lewat '+fmtRp(lebih)+'</b> dari budget'+(akt?'':' (baru proyeksi)'))
+         : lebih<0 ? ('<br>Sisa '+fmtRp(-lebih)+(akt?'':' menurut proyeksi'))
+                   : '<br>Pas dengan budget';
+  }
+  return b.join(' · ')+ekor;
+}
+function bpAktSync(c){ const m=$('#bpAktMeter'); if(m) m.innerHTML=bpMeterHtml(c); }
+function bpAgHtml(c){
+  const n=v=>Number(v)?String(Number(v)):'';
+  return '<div class="bpsec"><div class="l">Agency</div>'
+    +'<select id="bpAg">'
+    +'<option value=""'+(c.ag?'':' selected')+'>&mdash; tanpa agency &mdash;</option>'
+    +BP_AG.map(a=>'<option'+(a===c.ag?' selected':'')+'>'+a+'</option>').join('')+'</select>'
+    +'<div class="bpag">'
+    +'<label>📷 Foto<input id="bpFoto" class="agn" type="number" min="0" value="'+n(c.foto)+'"></label>'
+    +'<label>🎥 Video<input id="bpVideo" class="agn" type="number" min="0" value="'+n(c.video)+'"></label>'
+    +'<label>🎨 Design<input id="bpDesign" class="agn" type="number" min="0" value="'+n(c.design)+'"></label>'
+    +'</div><div class="muted" id="bpAgHint" style="font-size:11.5px;margin-top:6px"></div></div>';
+}
+// Akronim cuma mengerjakan Design; Tenshi/Holding cuma foto & video.
+// Kolom yang tidak berlaku dimatikan supaya kombinasinya tidak mungkin salah.
+function bpAgSync(c){
+  const sel=$('#bpAg'), f=$('#bpFoto'), v=$('#bpVideo'), d=$('#bpDesign'), h=$('#bpAgHint');
+  if(!sel||!f||!v||!d) return;
+  const a=sel.value, des=(a==='Akronim'), fv=(a&&a!=='Akronim');
+  f.disabled=v.disabled=!fv; d.disabled=!des;
+  if(!a){ f.value=v.value=d.value=''; c.foto=c.video=c.design=0; }
+  else if(des){ f.value=v.value=''; c.foto=c.video=0; }
+  else { d.value=''; c.design=0; }
+  if(h) h.innerHTML = !a ? 'Kosongkan kalau dikerjakan sendiri. Pilih agency dulu untuk mengisi jumlah output.'
+    : des ? '<b>Akronim</b> mengerjakan Design.'
+          : '<b>'+a+'</b> mengerjakan Foto &amp; Video.';
 }
 function bpOpenCard(i){
   const c=(bpData||[])[i]; if(!c) return;
@@ -717,6 +857,8 @@ function bpWireRows(c){
     el.querySelector('.pd').onchange=e=>{ r.dl=e.target.value; bpRefreshRows(c); };
     el.querySelector('.pst').onchange=e=>{ r.st=e.target.value; bpDock(); };
     el.querySelector('.pn').onblur=e=>{ const v=bpRp(e.target.value); r.nom=v; e.target.value=v?fmtNum(v):''; upd(); };
+    el.querySelector('.pc').oninput=e=>{ r.cat=e.target.value;
+      el.classList.toggle('adacat', !!e.target.value.trim()); bpDock(); };
   });
   box.querySelectorAll('[data-bpdel]').forEach(b=>b.onclick=()=>{ c.rows.splice(+b.dataset.bpdel,1); bpRefreshRows(c); });
 }
@@ -735,9 +877,17 @@ function bpWireDraw(c){
   const h=$('#bpDrawHost');
   h.onclick=e=>{ if(e.target.closest('[data-bpclose]')) bpClose(); };
   $('#bpMon').onchange=e=>{ bpGeser(c,e.target.value); bpOpenCard(bpSel); };
+  bpAktSync(c);
+  $('#bpAkt').onblur=e=>{ const v=bpRp(e.target.value); c.akt=v;
+    e.target.value=v?fmtNum(v):''; bpAktSync(c); bpDock(); };
+  bpAgSync(c);
+  $('#bpAg').onchange=e=>{ c.ag=e.target.value; bpAgSync(c); bpDock(); };
+  [['#bpFoto','foto'],['#bpVideo','video'],['#bpDesign','design']].forEach(function(x){
+    $(x[0]).oninput=e=>{ c[x[1]]=Math.max(0,Number(e.target.value)||0); bpDock(); };
+  });
   $('#bpAdd').onclick=()=>{
     const last=c.rows[c.rows.length-1];
-    c.rows.push({key:'',raw:'',sub:'',sub0:'',dl:(last&&last.dl)||'',dl0:'',nom:0,nom0:0,st:'Task Created',st0:'',baru:true});
+    c.rows.push({key:'',raw:'',sub:'',sub0:'',dl:(last&&last.dl)||'',dl0:'',nom:0,nom0:0,st:'Task Created',st0:'',cat:'',cat0:'',baru:true});
     bpRefreshRows(c);
     const inp=document.querySelectorAll('#bpRows .ps'); if(inp.length) inp[inp.length-1].focus();
   };
@@ -774,30 +924,64 @@ function bpWireBoard(){
 async function bpSimpan(){
   bpSnapshot();
   const perBrand={};
-  const tambah=(ck,e)=>{
-    if(!String(e.sub||'').trim()) return;
+  // Override di sheet dikunci pakai nama subtask ASLI dari Trello, bukan brief
+  // yang tampil di layar. Untuk baris lama, nama itu diambil dari kunci edit;
+  // baris baru belum punya nama asli, jadi pakai apa yang diketik.
+  const tambah=(ck,e,namaAsli)=>{
+    const sub = (namaAsli !== undefined && String(namaAsli).trim()) ? namaAsli : e.sub;
+    if(!String(sub||'').trim()) return;
     const br=bpSplitKey(ck);
-    (perBrand[br[0]]=perBrand[br[0]]||[]).push({card:br[1], subtask:e.sub, deadline:e.dl,
-      nominal:Number(e.nom)||0, status:e.st});
+    (perBrand[br[0]]=perBrand[br[0]]||[]).push({card:br[1], subtask:sub, deadline:e.dl,
+      nominal:Number(e.nom)||0, status:e.st, catatan:String(e.cat||'')});
   };
-  Object.keys(bpEdits.rows).forEach(k=>{ const i=k.lastIndexOf('||'); tambah(k.slice(0,i), bpEdits.rows[k]); });
+  Object.keys(bpEdits.rows).forEach(k=>{ const i=k.lastIndexOf('||'); tambah(k.slice(0,i), bpEdits.rows[k], k.slice(i+2)); });
   Object.keys(bpEdits.baru).forEach(ck=>bpEdits.baru[ck].forEach(b=>tambah(ck,b)));
-  const brands=Object.keys(perBrand);
+  const agBrand={}, kurang=[];
+  Object.keys(bpEdits.ag).forEach(ck=>{
+    const a=bpEdits.ag[ck], br=bpSplitKey(ck);
+    if((a.foto||a.video||a.design)&&!a.agency){ kurang.push(br[1]); return; }
+    (agBrand[br[0]]=agBrand[br[0]]||[]).push({card:br[1], bulan:a.bulan, tahun:a.tahun,
+      agency:a.agency||'', foto:Number(a.foto)||0, video:Number(a.video)||0, design:Number(a.design)||0});
+  });
+  if(kurang.length){ alert('Agency belum dipilih: '+kurang.join(', ')); return; }
+
+  const aktBrand={};
+  Object.keys(bpEdits.akt).forEach(ck=>{
+    const a=bpEdits.akt[ck], br=bpSplitKey(ck);
+    (aktBrand[br[0]]=aktBrand[br[0]]||[]).push({card:br[1], bulan:a.bulan, tahun:a.tahun, aktual:Number(a.aktual)||0});
+  });
+
+  const brands=[...new Set(Object.keys(perBrand).concat(Object.keys(agBrand)).concat(Object.keys(aktBrand)))];
   if(!brands.length){ alert('Tidak ada perubahan.'); return; }
   const b=$('#bpSave'); b.disabled=true; b.textContent='Menyimpan…';
-  let ok=0, gagal=[];
+  let ok=0, okAg=0, okAkt=0, gagal=[];
   for(const br of brands){
-    try{
+    if(perBrand[br]) try{
       const r=await fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({
         type:'editProyeksiBulk', brand:br, password:BOD_PW, items:perBrand[br] })});
       const j=await r.json();
       if(j.success) ok+=(j.count||perBrand[br].length); else gagal.push(br+': '+(j.error||''));
     }catch(e){ gagal.push(br+': gagal terhubung'); }
+    if(agBrand[br]) try{
+      const r=await fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({
+        type:'editAgencyKartu', brand:br, password:BOD_PW, items:agBrand[br] })});
+      const j=await r.json();
+      if(j.success){ okAg+=(j.count||agBrand[br].length); if(j.warning) gagal.push(br+' (agency): '+j.warning); }
+      else gagal.push(br+' (agency): '+(j.error||''));
+    }catch(e){ gagal.push(br+' (agency): gagal terhubung'); }
+    if(aktBrand[br]) try{
+      const r=await fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({
+        type:'editAktualKartu', brand:br, password:BOD_PW, items:aktBrand[br] })});
+      const j=await r.json();
+      if(j.success) okAkt+=(j.count||aktBrand[br].length);
+      else gagal.push(br+' (aktual): '+(j.error||''));
+    }catch(e){ gagal.push(br+' (aktual): gagal terhubung'); }
   }
+  const kabar=[]; if(ok) kabar.push(ok+' baris'); if(okAg) kabar.push(okAg+' agency'); if(okAkt) kabar.push(okAkt+' aktual');
   b.textContent='💾 Simpan Semua';
   if(gagal.length) alert('Sebagian gagal —\n'+gagal.join('\n'));
-  else alert('✅ '+ok+' baris tersimpan — langsung berlaku.');
-  bpEdits={rows:{},bulan:{},baru:{}};
+  else alert('✅ '+kabar.join(' + ')+' tersimpan — langsung berlaku.');
+  bpEdits={rows:{},bulan:{},baru:{},ag:{},akt:{}};
   try{ const rr=await fetch(APPS_SCRIPT_URL+'?action=getAgenda'+PW()); agendaData=await rr.json(); }catch(e){}
   bpData=null; bpSig=null; renderAgenda();
 }
@@ -806,7 +990,7 @@ function wireAgendaPapanBOD(){
   document.querySelectorAll('[data-bpsort]').forEach(b=>b.onclick=()=>{ bpSort=b.dataset.bpsort; renderAgenda(); });
   const s=$('#bpSave'), r=$('#bpReset');
   if(s) s.onclick=bpSimpan;
-  if(r) r.onclick=()=>{ bpEdits={rows:{},bulan:{},baru:{}}; bpData=null; bpSig=null; renderAgenda(); };
+  if(r) r.onclick=()=>{ bpEdits={rows:{},bulan:{},baru:{},ag:{},akt:{}}; bpData=null; bpSig=null; renderAgenda(); };
 }
 
 function renderAgendaTimelineBOD(rows){
@@ -1877,6 +2061,35 @@ function renderAgency(){
     return `<tr><td><b>${m}</b></td><td class="r num">${fmtNum(p)}</td><td class="r num">${fmtNum(v)}</td><td class="r num">${fmtNum(p+v)}</td><td class="r num">${fmtNum(d)}</td></tr>`;
   }).join('') || '<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Belum ada data untuk filter ini.</td></tr>';
 
+  // Rekap dari isian kartu (sheet 🏢 Agency Kartu). Dipisah dari angka di atas
+  // karena sumbernya beda: yang atas agregat per brand-bulan dari Trello,
+  // yang ini isian per kartu agenda — termasuk Holding, yang tidak ada di agregat.
+  const AK=(finData.agencyKartu||[]).filter(x=>
+    (f.brand==='(Semua)'||x.brand===f.brand) &&
+    (f.bulan==='(Semua)'||x.bulan===f.bulan));
+  const akAda=AK.length>0;
+  const akSum=(arr,k)=>arr.reduce((s,x)=>s+(Number(x[k])||0),0);
+  const AG3=['Tenshi Studio','Akronim','Holding'];
+  const akRows=AG3.map(a=>{
+    const g=AK.filter(x=>x.agency===a);
+    const pf=akSum(g,'foto'), pv=akSum(g,'video'), pd=akSum(g,'design');
+    return `<tr><td><b>${a}</b></td><td class="r num">${fmtNum(pf)}</td><td class="r num">${fmtNum(pv)}</td><td class="r num">${fmtNum(pd)}</td><td class="r num">${fmtNum(pf+pv+pd)}</td><td class="r num">${g.length}</td></tr>`;
+  }).join('');
+  const akTanpa=AK.filter(x=>!x.agency).length;
+  const akBrandRows=(f.brand==='(Semua)'?BR:[f.brand]).map(b=>{
+    const g=AK.filter(x=>x.brand===b);
+    const cel=AG3.map(a=>{
+      const q=g.filter(x=>x.agency===a);
+      return `<td class="r num">${fmtNum(akSum(q,'foto')+akSum(q,'video')+akSum(q,'design'))}</td>`;
+    }).join('');
+    return `<tr><td><b>${b}</b></td>${cel}<td class="r num">${g.length}</td></tr>`;
+  }).join('');
+  const akBlok = akAda
+    ? `<div class="tablewrap"><table><thead><tr><th>Agency</th><th class="r">Foto</th><th class="r">Video</th><th class="r">Design</th><th class="r">Total Output</th><th class="r">Kartu</th></tr></thead><tbody>${akRows}</tbody></table></div>
+       <div class="muted" style="margin:8px 0 10px;font-size:12px">${akTanpa?(akTanpa+' kartu diisi tanpa agency (dikerjakan sendiri).'):'Semua kartu yang terisi sudah punya agency.'}</div>
+       <div class="tablewrap"><table><thead><tr><th>Brand</th><th class="r">Tenshi Studio</th><th class="r">Akronim</th><th class="r">Holding</th><th class="r">Kartu</th></tr></thead><tbody>${akBrandRows}</tbody></table></div>`
+    : `<div class="muted" style="padding:16px;text-align:center">Belum ada kartu yang diisi agency-nya. Isi lewat tab <b>Agenda → 🗂 Papan</b>, klik kartu, bagian <b>Agency</b>.</div>`;
+
   // Holding fee per bulan (semua agency, tak terpengaruh filter bulan — tabel lengkap)
   const allHF=finData.holdingFee||[];
   const feeMonths=[...new Set(allHF.map(x=>x.month))].sort((a,b)=>MONTHS.indexOf(a)-MONTHS.indexOf(b));
@@ -1898,6 +2111,9 @@ function renderAgency(){
     <div class="tablewrap"><table><thead><tr><th>Brand</th><th class="r">Foto</th><th class="r">Video</th><th class="r">Tenshi (F+V)</th><th class="r">Design (Akronim)</th></tr></thead><tbody>${bRows}</tbody></table></div>
     <div class="section-title">📅 Per Bulan</div>
     <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Foto</th><th class="r">Video</th><th class="r">Tenshi (F+V)</th><th class="r">Design (Akronim)</th></tr></thead><tbody>${mRows}</tbody></table></div>
+    <div class="section-title">🏢 Per Agency — dari isian kartu</div>
+    <div class="muted" style="margin:-4px 0 10px;font-size:12px">Diisi per kartu agenda di <b>Agenda → 🗂 Papan</b>. Satu kartu satu agency: <b>Design → Akronim</b>, <b>Foto &amp; Video → Tenshi Studio / Holding</b>.</div>
+    ${akBlok}
     <div class="section-title">💵 Holding Fee per Bulan</div>
     <div class="muted" style="margin:-4px 0 10px;font-size:12px">Nominal tetap per bulan, diisi di sheet <b>🏢 Holding Fee</b>. Independen dari jumlah output agency.</div>
     <div class="tablewrap"><table><thead><tr><th>Bulan</th><th class="r">Tenshi Studio</th><th class="r">Akronim</th><th class="r">Total</th></tr></thead><tbody>${feeMRows}</tbody></table></div>`;
