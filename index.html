@@ -87,6 +87,12 @@
   .bprow .g1 .pst{grid-column:1 / 3}
 }
 @media(max-width:640px){.bpcol{flex-basis:230px}}
+/* ── Layar sentuh (HP & tablet) ─────────────────────────────
+   Kontrol dibesarkan, dan font input dipatok 16px karena di iOS
+   input di bawah 16px memicu auto-zoom saat difokus. */
+
+}
+
 body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5}
 .num{font-family:'DM Mono',monospace;font-variant-numeric:tabular-nums}
 .header{background:var(--green);padding:18px 30px 0;position:relative;overflow:hidden}
@@ -241,6 +247,34 @@ tr.lap-soon td{background:#fffaeb}
 .gateErr{background:var(--red-bg);color:var(--red);border-radius:9px;padding:9px 12px;font-size:12.5px;margin-bottom:12px;display:none}
 .gateErr.show{display:block}
 table thead th{cursor:pointer;user-select:none}.sort-ind{opacity:.55;font-size:.85em}
+/* Blok sentuh sengaja diletakkan paling akhir: beberapa aturan dasar
+   (.tab, .btn, .toolbar select, input.pc) muncul belakangan dan akan
+   menimpanya kalau blok ini ditaruh di atas. */
+@media (pointer: coarse){
+  .bprow .g1{ grid-template-columns:152px 110px 1fr 30px; }
+  .bprow input.pc{ font-size:16px; }
+  .toolbar select{ height:44px; font-size:16px; padding:0 11px; }
+  .btn{ height:44px; font-size:14px; padding:0 16px; }
+  .toolbar .tab, .bpdraw .tab, .bpchips .tab{ padding:11px 16px; }
+  .bprow input, .bprow select{ font-size:16px; padding:9px 10px; }
+  .bprow .del{ font-size:22px; min-height:40px; min-width:32px; }
+  .bprow .cat .ic{ font-size:14px; }
+  .bpsec select, .bpsec input, .bpsec .agn{ font-size:16px; padding:9px 10px; }
+  .bpdraw .x{ font-size:26px; padding:6px 10px; }
+  .bpdraw .b{ padding:14px 14px 28px; }
+  .tab{ padding:11px 16px; font-size:13px; }
+  .toolbar select{ font-size:16px; padding:8px 10px; }
+  .bptile{ padding:12px 12px; cursor:pointer; }
+  .bpcol{ max-height:72vh; }
+  .tablewrap table{ font-size:13px; }
+  .tablewrap th, .tablewrap td{ padding:10px 10px; }
+}
+@media (pointer: coarse) and (max-width:640px){
+  .bpcol{ flex-basis:270px; }
+  .bpcol.quiet{ flex:0 0 84px; }
+@media (pointer: coarse) and (max-width:560px){
+  .bprow .g1{ grid-template-columns:1fr 1fr 30px; }
+}
 </style>
 </head>
 <body>
@@ -533,6 +567,7 @@ function agScopeTabsBOD(){
 /* ═══ Papan BOD — kanban agenda per bulan, semua brand ═══ */
 const bpEsc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const BP_ST=['Task Created','Checklist Created','In Progress','Done'];
+const SENTUH = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || false;
 let bpData=null, bpSel=null, bpDrag=null, bpSig=null, bpSort='urut';
 
 // Agency per kartu. Kosong = dikerjakan sendiri, tanpa agency.
@@ -758,7 +793,7 @@ function bpTile(c,i){
   const nonom=c.rows.filter(r=>!(Number(r.nom)>0)).length;
   const telat=c.rows.filter(r=>{const s=bpSisa(r.dl);return r.st!=='Done'&&s!==null&&s<0;}).length;
   const pro=c.rows.reduce((s,r)=>s+(Number(r.nom)||0),0);
-  return '<button class="bptile" draggable="true" data-bpt="'+i+'">'
+  return '<button class="bptile"'+(SENTUH?'':' draggable="true"')+' data-bpt="'+i+'">'
     +'<span class="br">'+bpEsc(c.brand)+'</span>'
     +'<span class="t">'+bpEsc(c.card)+'</span>'
     +'<span class="bs">'
@@ -793,7 +828,9 @@ function renderAgendaPapanBOD(rows){
   const sig=bpSigOf(rows);
   if(bpData===null || bpSig!==sig){ bpSnapshot(); bpData=bpApplyEdits(bpBuild(rows)); bpSig=sig; }
   return '<div class="note" style="margin:8px 0">🗂 Kolom mengikuti list bulan di board Trello tiap brand. '
-    +'<b>Seret kartu</b> antar bulan untuk menjadwalkan ulang, <b>klik kartu</b> untuk membereskan tanggal, nominal, dan status subtask. '
+    +(SENTUH
+      ? '<b>Ketuk kartu</b> untuk membereskan tanggal, nominal, status, dan catatan subtask. Untuk memindah bulan, ketuk kartunya lalu ubah <b>Bulan</b> di bagian atas. '
+      : '<b>Seret kartu</b> antar bulan untuk menjadwalkan ulang, <b>klik kartu</b> untuk membereskan tanggal, nominal, dan status subtask. ')
     +'Perubahan dari sini langsung berlaku dan mengalahkan Trello.</div>'
     +'<div class="toolbar" style="margin-bottom:8px"><button class="tab" id="bpSave" disabled>💾 Simpan Semua</button>'
     +'<span class="lbl" id="bpDirty"></span>'
