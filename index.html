@@ -87,12 +87,6 @@
   .bprow .g1 .pst{grid-column:1 / 3}
 }
 @media(max-width:640px){.bpcol{flex-basis:230px}}
-/* ── Layar sentuh (HP & tablet) ─────────────────────────────
-   Kontrol dibesarkan, dan font input dipatok 16px karena di iOS
-   input di bawah 16px memicu auto-zoom saat difokus. */
-
-}
-
 body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5}
 .num{font-family:'DM Mono',monospace;font-variant-numeric:tabular-nums}
 .header{background:var(--green);padding:18px 30px 0;position:relative;overflow:hidden}
@@ -272,8 +266,18 @@ table thead th{cursor:pointer;user-select:none}.sort-ind{opacity:.55;font-size:.
 @media (pointer: coarse) and (max-width:640px){
   .bpcol{ flex-basis:270px; }
   .bpcol.quiet{ flex:0 0 84px; }
+}
 @media (pointer: coarse) and (max-width:560px){
   .bprow .g1{ grid-template-columns:1fr 1fr 30px; }
+}
+@media (pointer: coarse) and (max-width:700px){
+  /* 6 tab yang membungkus memakan 5 baris sebelum konten muncul.
+     Dijadikan satu baris yang digeser mendatar. */
+  .tabs{ flex-wrap:nowrap; overflow-x:auto; gap:2px; margin-top:10px;
+         scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+  .tabs::-webkit-scrollbar{ display:none; }
+  .tabs .tab{ flex:0 0 auto; white-space:nowrap; padding:10px 12px; font-size:12.5px; }
+  .header .btn{ height:40px; }
 }
 </style>
 </head>
