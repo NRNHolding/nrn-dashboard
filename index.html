@@ -2108,6 +2108,12 @@ function renderMarketing(){
     <div class="toolbar">
       <span class="lbl">Brand</span><select id="mBrand">${opt(brandOpts,f.brand)}</select>
       <span class="lbl">Bulan</span><select id="mMonth">${opt(monthOpts,f.month)}</select>
+      <span style="flex:1"></span>
+      <button class="tab" id="mTarik" title="Tarik ulang metrik Instagram dari Windsor ke sheet Sosmed KPI">↻ Tarik dari Windsor</button>
+    </div>
+    <div class="muted" id="mTarikInfo" style="margin:-6px 0 10px;font-size:12px">
+      Angka di halaman ini dibaca dari sheet <b>Sosmed KPI</b>. Tombol <b>Refresh</b> di atas hanya membaca ulang sheet itu
+      — yang benar-benar menarik dari Windsor adalah tombol <b>Tarik dari Windsor</b>. Bulan berjalan ikut ditarik sampai hari ini.
     </div>
     <div class="section-title">📊 Ringkasan KPI</div>
     <div class="brandgrid">${cards}</div>
@@ -2118,6 +2124,51 @@ function renderMarketing(){
       <tbody>${tb}</tbody></table></div>`;
   $('#mBrand').onchange=e=>{f.brand=e.target.value;renderMarketing();};
   $('#mMonth').onchange=e=>{f.month=e.target.value;renderMarketing();};
+  $('#mTarik').onclick=tarikWindsor;
+}
+
+// Tarik ulang dari Windsor lalu muat ulang sheet-nya. Dipisah dari tombol
+// Refresh karena ini memakai kuota API Windsor, bukan sekadar baca sheet.
+async function tarikWindsor(){
+  if(!confirm('Tarik ulang metrik Instagram dari Windsor?\n\nSemua bulan tahun berjalan ditulis ulang di sheet Sosmed KPI. Bulan berjalan ikut, sampai hari ini.')) return;
+  const b=$('#mTarik'), info=$('#mTarikInfo');
+  const semula=b.textContent;
+  b.disabled=true; b.textContent='Menarik…';
+  if(info) info.innerHTML='⏳ Memanggil Windsor… biasanya 5–15 detik.';
+  try{
+    const r=await fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({type:'syncWindsor', password:BOD_PW})});
+    const j=await r.json();
+    if(!j.success){
+      if(info) info.innerHTML='❌ Gagal: '+bpEsc(j.error||'tidak diketahui');
+      alert('Gagal menarik dari Windsor:\n'+(j.error||'tidak diketahui'));
+      return;
+    }
+    // Muat ulang sheet supaya angkanya langsung berubah di layar.
+    try{ const d=await (await fetch(APPS_SCRIPT_URL+'?action=getMarketingAll'+PW())).json();
+         if(d.success) mktData=normMktMonths(d); }catch(_){}
+    const perBrand=Object.keys(j.brands||{}).map(k=>k+' ('+j.brands[k]+' bulan)').join(' · ');
+    let pesan;
+    if(j.count>0){
+      pesan='✅ '+j.count+' baris brand-bulan diperbarui · '+bpEsc(j.periode||'')
+        +(perBrand?('<br>'+bpEsc(perBrand)):'');
+    }else{
+      // 0 baris tanpa error hampir selalu berarti account_id tidak cocok.
+      const asing=(j.akunTakDikenal||[]);
+      pesan='⚠️ Windsor menjawab, tapi <b>0 baris</b> yang cocok · '+bpEsc(j.periode||'')
+        +(asing.length
+          ? ('<br>account_id dari Windsor yang belum terdaftar di kode: <b>'+bpEsc(asing.join(', '))+'</b>')
+          : '<br>Windsor tidak mengembalikan data sama sekali untuk rentang ini.');
+    }
+    // renderMarketing menggambar ulang toolbar, jadi pesannya dipasang SESUDAH itu.
+    renderMarketing();
+    const info2=$('#mTarikInfo'); if(info2) info2.innerHTML=pesan;
+    return;
+  }catch(e){
+    if(info) info.innerHTML='❌ Gagal terhubung ke server.';
+    alert('Gagal terhubung ke server.');
+  }finally{
+    const bb=$('#mTarik'); if(bb){ bb.disabled=false; bb.textContent=semula; }
+  }
 }
 
 /* ===== AGENCY (penggunaan agency) ===== */
