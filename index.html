@@ -50,6 +50,14 @@
 .bpsec{margin-bottom:16px}
 .bpsec>.l{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin-bottom:7px}
 .bpsec select{padding:6px 9px;border:1px solid var(--cream2);border-radius:8px;background:var(--white);color:var(--text);font-size:12.5px}
+.aglist{display:flex;flex-direction:column;gap:6px}
+.agblok{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;
+ border:1px solid var(--cream2);border-radius:9px;background:var(--cream)}
+.agblok.on{border-color:var(--gold);background:#fffaf0}
+.agblok .agnm{font-weight:700;font-size:12.5px;flex:0 0 118px}
+.agblok .agfs{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.agblok .agf{display:flex;gap:5px;align-items:center;font-size:11.5px;color:var(--text2)}
+@media(max-width:560px){.agblok .agnm{flex-basis:100%}}
 .bpsec .agn{width:74px;text-align:right;padding:6px 9px;border:1px solid var(--cream2);border-radius:8px;background:var(--white);color:var(--text);font-size:12.5px}
 .bpsec .agn:disabled{opacity:.45}
 .bpag{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px}
@@ -631,8 +639,13 @@ function bpEstOf(brand,card,bulan){
   return ov?(Number(ov.budget)||0):0;
 }
 function bpAgOf(brand,card){
-  const rows=(agendaData&&agendaData.agencyKartu)||[];
-  return rows.find(x=>String(x.brand)===String(brand)&&String(x.card)===String(card))||null;
+  const out={};
+  ((agendaData&&agendaData.agencyKartu)||[]).forEach(function(x){
+    if(String(x.brand)!==String(brand)||String(x.card)!==String(card)) return;
+    const nm=String(x.agency||'').trim(); if(!nm) return;
+    out[nm]={foto:Number(x.foto)||0, video:Number(x.video)||0, design:Number(x.design)||0};
+  });
+  return out;
 }
 
 // Nama subtask di sheet masih membawa tag "[DD MM] -" (kalau parser tanggalnya
@@ -678,16 +691,15 @@ function bpBuild(rows){
       }).map(x=>x.r);
     }
     c.rows.forEach(r=>{ r.ur0=r.ur; });
-    const a=bpAgOf(c.brand,c.card)||{};
-    c.ag=String(a.agency||''); c.foto=Number(a.foto)||0; c.video=Number(a.video)||0; c.design=Number(a.design)||0;
-    c.ag0=c.ag; c.foto0=c.foto; c.video0=c.video; c.design0=c.design;
+    c.ags=bpAgOf(c.brand,c.card);
+    c.ags0=JSON.parse(JSON.stringify(c.ags));
     const ak=bpAktOf(c.brand,c.card)||{};
     c.akt=Number(ak.act)||0; c.akt0=c.akt;
     return c;
   });
 }
 const bpRowDirty=r=>!!(r.baru||r.sub!==r.sub0||r.dl!==r.dl0||Number(r.nom)!==Number(r.nom0)||r.st!==r.st0||String(r.cat||'')!==String(r.cat0||'')||r.ur!==r.ur0);
-const bpAgDirty=c=>!!(c.ag!==c.ag0||Number(c.foto)!==Number(c.foto0)||Number(c.video)!==Number(c.video0)||Number(c.design)!==Number(c.design0));
+const bpAgDirty=c=>JSON.stringify(c.ags||{})!==JSON.stringify(c.ags0||{});
 const bpAktDirty=c=>Number(c.akt||0)!==Number(c.akt0||0);
 const bpCardDirty=c=>!!(c.bulan!==c.bulan0||bpAgDirty(c)||bpAktDirty(c)||c.rows.some(bpRowDirty));
 function bpDirtyN(){
@@ -712,7 +724,7 @@ function bpSnapshot(){
       if(bpRowDirty(r)) bpEdits.rows[k]={sub:r.sub,dl:r.dl,nom:r.nom,st:r.st,cat:r.cat,ur:r.ur}; else delete bpEdits.rows[k];
     });
     if(baru.length) bpEdits.baru[ck]=baru; else delete bpEdits.baru[ck];
-    if(bpAgDirty(c)) bpEdits.ag[ck]={bulan:c.bulan,tahun:c.tahun,agency:c.ag,foto:c.foto,video:c.video,design:c.design};
+    if(bpAgDirty(c)) bpEdits.ag[ck]={bulan:c.bulan,tahun:c.tahun,ags:JSON.parse(JSON.stringify(c.ags)),ags0:JSON.parse(JSON.stringify(c.ags0||{}))};
     else delete bpEdits.ag[ck];
     if(bpAktDirty(c)) bpEdits.akt[ck]={bulan:c.bulan,tahun:c.tahun,aktual:Number(c.akt)||0};
     else delete bpEdits.akt[ck];
@@ -728,7 +740,7 @@ function bpApplyEdits(next){
     });
     (bpEdits.baru[ck]||[]).forEach(b=>c.rows.push({key:'',raw:'',sub:b.sub,sub0:'',dl:b.dl,dl0:'',nom:b.nom,nom0:0,st:b.st,st0:'',cat:b.cat||'',cat0:'',ur:null,ur0:null,baru:true}));
     const a=bpEdits.ag[ck];
-    if(a){ c.ag=a.agency; c.foto=a.foto; c.video=a.video; c.design=a.design; }
+    if(a && a.ags) c.ags=JSON.parse(JSON.stringify(a.ags));
     const k2=bpEdits.akt[ck];
     if(k2) c.akt=Number(k2.aktual)||0;
   });
@@ -737,7 +749,7 @@ function bpApplyEdits(next){
 function bpSplitKey(ck){ const j=ck.indexOf('||'); return [ck.slice(0,j), ck.slice(j+2)]; }
 function bpSigOf(rows){
   const ag=((agendaData&&agendaData.agencyKartu)||[])
-    .map(x=>[x.brand,x.card,x.agency,x.foto,x.video,x.design].join('|')).join(';')
+    .map(x=>[x.brand,x.card,x.agency,x.foto,x.video,x.design].join('|')).sort().join(';')
    +'#'+((agendaData&&agendaData.aktDetail)||[]).map(x=>[x.brand,x.card,x.act].join('|')).join(';')
    +'#'+((agendaData&&agendaData.budgetOverrides)||[]).map(x=>[x.brand,x.card,x.status,x.budget].join('|')).join(';');
   return (rows||[]).map(r=>[r.brand,r.card,r.subtask,r.deadlineISO,r.nominal,r.status,r.catatan,r.urutan].join('')).join('')+'##'+ag;
@@ -814,7 +826,8 @@ function bpTile(c,i){
     +(bpUsulOf(c.brand,c.card)?'<span class="bpb w">usulan budget menunggu</span>':'')
     +(nonom?'<span class="bpb w">'+nonom+' tanpa nominal</span>':'')
     +(telat?'<span class="bpb b">'+telat+' lewat</span>':'')
-    +(c.ag?'<span class="bpb">'+bpEsc(c.ag)+' '+((Number(c.foto)||0)+(Number(c.video)||0)+(Number(c.design)||0))+'</span>':'')
+    +Object.keys(c.ags||{}).filter(n=>bpAgTotal(c.ags[n])>0)
+       .map(n=>'<span class="bpb">'+bpEsc(n)+' '+bpAgTotal(c.ags[n])+'</span>').join('')
     +(bpCardDirty(c)?'<span class="bpb e">diubah</span>':'')
     +'</span></button>';
 }
@@ -899,16 +912,13 @@ function bpDrawHtml(c){
     +'</div><div class="f"><button class="tab" data-bpclose>Tutup</button><span style="flex:1"></span>'
     +'<button class="tab on" id="bpDone">Selesai</button></div></aside>';
 }
-// Satu kartu = satu agency. Semua output 0 -> agency boleh kosong (dikerjakan
-// sendiri). Begitu ada output, agency wajib dipilih.
 // Budget disepakati datang dari Trello/approval BOD, jadi di sini cuma dibaca.
 // Yang bisa diisi realisasinya, supaya selisihnya kelihatan tanpa buka sheet.
 function bpAktHtml(c){
   return '<div class="bpsec"><div class="l">Anggaran</div>'
     +'<div class="bpag"><label>Aktual terpakai'
     +'<input id="bpAkt" class="agn" style="width:150px" value="'+(Number(c.akt)>0?fmtNum(c.akt):'')+'" placeholder="0"></label></div>'
-    +'<div class="muted" id="bpAktMeter" style="font-size:11.5px;margin-top:6px"></div>'
-    +bpTungguHtml(c)+'</div>';
+    +'<div class="muted" id="bpAktMeter" style="font-size:11.5px;margin-top:6px"></div></div>';
 }
 function bpMeterHtml(c){
   const est=bpEstOf(c.brand,c.card,c.bulan);
@@ -924,34 +934,38 @@ function bpMeterHtml(c){
          : lebih<0 ? ('<br>Sisa '+fmtRp(-lebih)+(akt?'':' menurut proyeksi'))
                    : '<br>Pas dengan budget';
   }
-  return b.join(' · ')+ekor;
+  return b.join(' \u00b7 ')+ekor;
 }
 function bpAktSync(c){ const m=$('#bpAktMeter'); if(m) m.innerHTML=bpMeterHtml(c); }
+// Satu kartu boleh memakai beberapa agency sekaligus. Tiap agency punya
+// barisnya sendiri dan hanya menampilkan output yang jadi tugasnya —
+// Akronim mengerjakan Design, Tenshi/Holding mengerjakan Foto & Video.
+const BP_BIDANG={'Tenshi Studio':['foto','video'],'Akronim':['design'],'Holding':['foto','video']};
+const BP_LABEL={foto:'\u{1F4F7} Foto', video:'\u{1F3A5} Video', design:'\u{1F3A8} Design'};
+function bpAgKosong(){ return {foto:0,video:0,design:0}; }
+function bpAgTotal(a){ a=a||{}; return (Number(a.foto)||0)+(Number(a.video)||0)+(Number(a.design)||0); }
 function bpAgHtml(c){
   const n=v=>Number(v)?String(Number(v)):'';
+  const blok=BP_AG.map(function(nama){
+    const a=(c.ags||{})[nama]||bpAgKosong();
+    const field=BP_BIDANG[nama].map(function(k){
+      return '<label class="agf">'+BP_LABEL[k]
+        +'<input class="agn" type="number" min="0" data-ag="'+bpEsc(nama)+'" data-bid="'+k+'" value="'+n(a[k])+'"></label>';
+    }).join('');
+    return '<div class="agblok'+(bpAgTotal(a)>0?' on':'')+'">'
+      +'<div class="agnm">'+bpEsc(nama)+'</div><div class="agfs">'+field+'</div></div>';
+  }).join('');
   return '<div class="bpsec"><div class="l">Agency</div>'
-    +'<select id="bpAg">'
-    +'<option value=""'+(c.ag?'':' selected')+'>&mdash; tanpa agency &mdash;</option>'
-    +BP_AG.map(a=>'<option'+(a===c.ag?' selected':'')+'>'+a+'</option>').join('')+'</select>'
-    +'<div class="bpag">'
-    +'<label>📷 Foto<input id="bpFoto" class="agn" type="number" min="0" value="'+n(c.foto)+'"></label>'
-    +'<label>🎥 Video<input id="bpVideo" class="agn" type="number" min="0" value="'+n(c.video)+'"></label>'
-    +'<label>🎨 Design<input id="bpDesign" class="agn" type="number" min="0" value="'+n(c.design)+'"></label>'
-    +'</div><div class="muted" id="bpAgHint" style="font-size:11.5px;margin-top:6px"></div></div>';
+    +'<div class="aglist">'+blok+'</div>'
+    +'<div class="muted" style="font-size:11.5px;margin-top:7px">Isi jumlah output di agency yang mengerjakan. '
+    +'Boleh lebih dari satu. Yang dibiarkan nol berarti tidak dipakai.</div></div>';
 }
-// Akronim cuma mengerjakan Design; Tenshi/Holding cuma foto & video.
-// Kolom yang tidak berlaku dimatikan supaya kombinasinya tidak mungkin salah.
 function bpAgSync(c){
-  const sel=$('#bpAg'), f=$('#bpFoto'), v=$('#bpVideo'), d=$('#bpDesign'), h=$('#bpAgHint');
-  if(!sel||!f||!v||!d) return;
-  const a=sel.value, des=(a==='Akronim'), fv=(a&&a!=='Akronim');
-  f.disabled=v.disabled=!fv; d.disabled=!des;
-  if(!a){ f.value=v.value=d.value=''; c.foto=c.video=c.design=0; }
-  else if(des){ f.value=v.value=''; c.foto=c.video=0; }
-  else { d.value=''; c.design=0; }
-  if(h) h.innerHTML = !a ? 'Kosongkan kalau dikerjakan sendiri. Pilih agency dulu untuk mengisi jumlah output.'
-    : des ? '<b>Akronim</b> mengerjakan Design.'
-          : '<b>'+a+'</b> mengerjakan Foto &amp; Video.';
+  const h=$('#bpDrawHost'); if(!h) return;
+  h.querySelectorAll('.agblok').forEach(function(el){
+    const nama=el.querySelector('.agnm').textContent;
+    el.classList.toggle('on', bpAgTotal((c.ags||{})[nama])>0);
+  });
 }
 function bpOpenCard(i){
   const c=(bpData||[])[i]; if(!c) return;
@@ -1069,9 +1083,14 @@ function bpWireDraw(c){
   $('#bpAkt').onblur=e=>{ const v=bpRp(e.target.value); c.akt=v;
     e.target.value=v?fmtNum(v):''; bpAktSync(c); bpDock(); };
   bpAgSync(c);
-  $('#bpAg').onchange=e=>{ c.ag=e.target.value; bpAgSync(c); bpDock(); };
-  [['#bpFoto','foto'],['#bpVideo','video'],['#bpDesign','design']].forEach(function(x){
-    $(x[0]).oninput=e=>{ c[x[1]]=Math.max(0,Number(e.target.value)||0); bpDock(); };
+  h.querySelectorAll('[data-ag]').forEach(function(inp){
+    inp.oninput=function(e){
+      const nama=inp.dataset.ag, bid=inp.dataset.bid;
+      if(!c.ags) c.ags={};
+      if(!c.ags[nama]) c.ags[nama]=bpAgKosong();
+      c.ags[nama][bid]=Math.max(0,Number(e.target.value)||0);
+      bpAgSync(c); bpDock();
+    };
   });
   $('#bpAdd').onclick=()=>{
     const last=c.rows[c.rows.length-1];
@@ -1125,14 +1144,20 @@ async function bpSimpan(){
   };
   Object.keys(bpEdits.rows).forEach(k=>{ const i=k.lastIndexOf('||'); tambah(k.slice(0,i), bpEdits.rows[k], k.slice(i+2)); });
   Object.keys(bpEdits.baru).forEach(ck=>bpEdits.baru[ck].forEach(b=>tambah(ck,b)));
-  const agBrand={}, kurang=[];
+  const agBrand={};
   Object.keys(bpEdits.ag).forEach(ck=>{
     const a=bpEdits.ag[ck], br=bpSplitKey(ck);
-    if((a.foto||a.video||a.design)&&!a.agency){ kurang.push(br[1]); return; }
-    (agBrand[br[0]]=agBrand[br[0]]||[]).push({card:br[1], bulan:a.bulan, tahun:a.tahun,
-      agency:a.agency||'', foto:Number(a.foto)||0, video:Number(a.video)||0, design:Number(a.design)||0});
+    const nama={}; BP_AG.forEach(n=>nama[n]=1);
+    Object.keys(a.ags||{}).forEach(n=>nama[n]=1);
+    Object.keys(a.ags0||{}).forEach(n=>nama[n]=1);
+    Object.keys(nama).forEach(function(n){
+      const kini=(a.ags||{})[n]||bpAgKosong(), dulu=(a.ags0||{})[n];
+      if(!dulu && bpAgTotal(kini)===0) return;
+      if(dulu && JSON.stringify(kini)===JSON.stringify(dulu)) return;
+      (agBrand[br[0]]=agBrand[br[0]]||[]).push({card:br[1], bulan:a.bulan, tahun:a.tahun, agency:n,
+        foto:Number(kini.foto)||0, video:Number(kini.video)||0, design:Number(kini.design)||0});
+    });
   });
-  if(kurang.length){ alert('Agency belum dipilih: '+kurang.join(', ')); return; }
 
   const aktBrand={};
   Object.keys(bpEdits.akt).forEach(ck=>{
@@ -2352,7 +2377,7 @@ function renderAgency(){
       <span class="lbl">Bulan</span><select id="aBulan">${opt(monthOpts,f.bulan)}</select>
     </div>
     <div class="section-title">🏢 Penggunaan Agency ${finData.year}</div>
-    <div class="muted" style="margin:-4px 0 10px;font-size:12px">Logika: <b>Foto + Video → Tenshi Studio</b> · <b>Design → Akronim</b></div>
+    <div class="muted" style="margin:-4px 0 10px;font-size:12px">Satu kartu boleh memakai beberapa agency. <b>Design → Akronim</b> · <b>Foto &amp; Video → Tenshi Studio atau Holding</b></div>
     <div class="brandgrid">${cards}</div>
     <div class="section-title">🏢 Per Brand</div>
     <div class="tablewrap"><table><thead><tr><th>Brand</th><th class="r">Foto</th><th class="r">Video</th><th class="r">Tenshi (F+V)</th><th class="r">Design (Akronim)</th></tr></thead><tbody>${bRows}</tbody></table></div>
