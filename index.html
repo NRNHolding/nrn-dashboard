@@ -805,7 +805,7 @@ function bpBoardHtml(){
       +'<div class="bphd"><b>'+bpEsc(M)+'</b><span class="n">'+list.length+'</span>'
       +(quiet?'':'<span class="s">'+fmtRp(pro)+'</span>')+'</div>'
       +'<div class="bpstack">'+(bpUrut(list).map(p=>bpTile(p[0],p[1])).join('')
-        ||'<div class="bpempty">seret ke sini</div>')+'</div></section>';
+        ||'<div class="bpempty">'+(SENTUH?'kosong':'seret ke sini')+'</div>')+'</div></section>';
   }).join('');
 }
 function renderAgendaPapanBOD(rows){
