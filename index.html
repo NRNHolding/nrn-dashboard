@@ -47,6 +47,20 @@
 .bpdraw .x{background:none;border:0;cursor:pointer;color:var(--text3);font-size:19px;line-height:1;padding:2px 5px}
 .bpdraw .b{overflow-y:auto;flex:1;padding:14px 16px 20px}
 .bpdraw .f{padding:10px 16px;border-top:1px solid var(--cream2);display:flex;gap:8px;align-items:center}
+.bpdraw .f.fdel{background:var(--red-bg);flex-wrap:wrap}
+.bpdraw .f.fdel .fq{flex:1 1 230px;font-size:11.5px;color:var(--red);line-height:1.45}
+.bpdraw .f.fdel .fbtn{display:flex;gap:8px;margin-left:auto}
+.bpdraw .tab.del{background:var(--red-bg);color:var(--red);border-color:#e8b9b9}
+/* Latar baris konfirmasi sudah merah muda — tombolnya harus solid. */
+.bpdraw .f.fdel .tab.del{background:var(--red);color:#fff;border-color:var(--red)}
+.hplist{margin:10px 0 2px;border:1px dashed var(--cream2);border-radius:10px;padding:9px 11px;background:var(--cream)}
+.hplist .l{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:7px}
+.hprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:5px 0;border-top:1px solid var(--cream2)}
+.hprow:first-of-type{border-top:0}
+.hprow .nm{flex:1;min-width:150px;font-size:12px;word-break:break-word}
+.hprow .wk{font-size:10.5px;color:var(--text3)}
+.hplist .tab{color:var(--text2);background:var(--white);border:1px solid var(--cream2);border-radius:9px;
+  padding:6px 12px;font-size:12.5px;line-height:1.35;font-family:inherit;font-weight:600;cursor:pointer}
 .bpsec{margin-bottom:16px}
 .bpsec>.l{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin-bottom:7px}
 .bpsec select{padding:6px 9px;border:1px solid var(--cream2);border-radius:8px;background:var(--white);color:var(--text);font-size:12.5px}
@@ -269,7 +283,7 @@ table thead th{cursor:pointer;user-select:none}.sort-ind{opacity:.55;font-size:.
   .bprow input.pc{ font-size:16px; }
   .toolbar select{ height:44px; font-size:16px; padding:0 11px; }
   .btn{ height:44px; font-size:14px; padding:0 16px; }
-  .toolbar .tab, .bpdraw .tab, .bpchips .tab{ padding:11px 16px; }
+  .toolbar .tab, .bpdraw .tab, .bpchips .tab, .hplist .tab{ padding:11px 16px; }
   .bprow input, .bprow select{ font-size:16px; padding:9px 10px; }
   .bprow .del{ font-size:22px; min-height:40px; min-width:32px; }
   .bprow .cat .ic{ font-size:14px; }
@@ -862,7 +876,8 @@ function renderAgendaPapanBOD(rows){
     +'<span style="flex:1"></span><span class="lbl">Urutkan</span>'
     +['urut','tertinggal','selesai'].map(k=>'<button class="tab'+(bpSort===k?' on':'')
       +'" data-bpsort="'+k+'">'+BP_SORT_LBL[k]+'</button>').join('')+'</div>'
-    +'<div class="bppapan" id="bpBoard">'+bpBoardHtml()+'</div><div id="bpDrawHost"></div>';
+    +'<div class="bppapan" id="bpBoard">'+bpBoardHtml()+'</div>'
+    +bpHapusHtml()+'<div id="bpDrawHost"></div>';
 }
 function bpDock(){
   bpSnapshot();
@@ -909,8 +924,14 @@ function bpDrawHtml(c){
     +'<div class="muted" style="font-size:11.5px;margin-top:7px">Total proyeksi kartu ini <b>'+fmtRp(pro)+'</b>. '
     +'Nominal menerima <b>1,5jt</b>, <b>500rb</b>, atau <b>1.500.000</b>.</div></div>'
     +bpDetHtml(c)
-    +'</div><div class="f"><button class="tab" data-bpclose>Tutup</button><span style="flex:1"></span>'
-    +'<button class="tab on" id="bpDone">Selesai</button></div></aside>';
+    +'</div><div class="f" id="bpFootA"><button class="tab del" id="bpHapus">\u{1F5D1} Hapus agenda</button>'
+    +'<button class="tab" data-bpclose>Tutup</button><span style="flex:1"></span>'
+    +'<button class="tab on" id="bpDone">Selesai</button></div>'
+    +'<div class="f fdel" id="bpFootB" style="display:none">'
+    +'<span class="fq">Hapus <b>'+bpEsc(c.card)+'</b> ('+bpEsc(c.brand)+') dari hub? '+c.rows.length+' subtask, catatan, agency, dan budgetnya ikut hilang dari tampilan. '
+    +'Kartu di Trello tidak disentuh, dan ini bisa dipulihkan lagi dari papan.</span>'
+    +'<span class="fbtn"><button class="tab" id="bpBatalHapus">Batal</button>'
+    +'<button class="tab del" id="bpYaHapus">Ya, hapus</button></span></div></aside>';
 }
 // Budget disepakati datang dari Trello/approval BOD, jadi di sini cuma dibaca.
 // Yang bisa diisi realisasinya, supaya selisihnya kelihatan tanpa buka sheet.
@@ -1108,6 +1129,9 @@ function bpWireDraw(c){
     bpRefreshRows(c);
   });
   $('#bpDone').onclick=bpClose;
+  $('#bpHapus').onclick=()=>{ $('#bpFootA').style.display='none'; $('#bpFootB').style.display=''; };
+  $('#bpBatalHapus').onclick=()=>{ $('#bpFootB').style.display='none'; $('#bpFootA').style.display=''; };
+  $('#bpYaHapus').onclick=()=>bpHapus(c);
   bpWireRows(c);
 }
 function bpWireBoard(){
@@ -1199,9 +1223,54 @@ async function bpSimpan(){
   try{ const rr=await fetch(APPS_SCRIPT_URL+'?action=getAgenda'+PW()); agendaData=await rr.json(); }catch(e){}
   bpData=null; bpSig=null; renderAgenda();
 }
+// ── Hapus agenda ─────────────────────────────────────────────
+// Hub cuma punya izin baca ke Trello, jadi "hapus" artinya kartu berhenti
+// ditampilkan dan berhenti ikut dihitung di hub. Baris override/agency/aktual
+// kartunya sengaja ditinggal di sheet supaya "Pulihkan" mengembalikan utuh.
+async function bpKirimHapus(brand, card, pulihkan){
+  const res=await fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({
+    type:'hapusAgenda', brand:brand, password:BOD_PW, card:card, oleh:'BOD',
+    pulihkan: !!pulihkan })});
+  return res.json();
+}
+async function bpMuatUlangAgenda(){
+  try{ const r=await fetch(APPS_SCRIPT_URL+'?action=getAgenda'+PW()); agendaData=await r.json(); }catch(e){}
+  bpData=null; bpSig=null; renderAgenda();
+}
+async function bpHapus(c){
+  const b=$('#bpYaHapus'); b.disabled=true; b.textContent='Menghapus\u2026';
+  try{
+    const j=await bpKirimHapus(c.brand, c.card, false);
+    if(!j.success){ alert('Gagal: '+(j.error||'')); b.disabled=false; b.textContent='Ya, hapus'; return; }
+    bpSel=null; const h=$('#bpDrawHost'); if(h) h.innerHTML='';
+    await bpMuatUlangAgenda();
+  }catch(e){ alert('Gagal terhubung ke server.'); b.disabled=false; b.textContent='Ya, hapus'; }
+}
+async function bpPulihkan(brand, card, btn){
+  btn.disabled=true; btn.textContent='Memulihkan\u2026';
+  try{
+    const j=await bpKirimHapus(brand, card, true);
+    if(!j.success){ alert('Gagal: '+(j.error||'')); btn.disabled=false; btn.textContent='Pulihkan'; return; }
+    await bpMuatUlangAgenda();
+  }catch(e){ alert('Gagal terhubung ke server.'); btn.disabled=false; btn.textContent='Pulihkan'; }
+}
+function bpHapusHtml(){
+  // Ikut filter brand yang sedang aktif, supaya daftarnya tidak membingungkan.
+  const br=(agendaFilt&&agendaFilt.brand)||'(Semua)';
+  const hp=((agendaData&&agendaData.kartuDihapus)||[]).filter(o=>br==='(Semua)'||o.brand===br);
+  if(!hp.length) return '';
+  return '<div class="hplist"><div class="l">\u{1F5D1} Agenda dihapus \u00b7 '+hp.length+'</div>'
+    +hp.map(o=>'<div class="hprow"><span class="nm">'+bpEsc(o.card)+' <span class="wk">\u00b7 '+bpEsc(o.brand)+'</span></span>'
+      +'<span class="wk">'+bpEsc(o.kapan||'')+(o.oleh?(' \u00b7 '+bpEsc(o.oleh)):'')+'</span>'
+      +'<button class="tab" data-pulih="'+bpEsc(o.card)+'" data-pulihbr="'+bpEsc(o.brand)+'">Pulihkan</button></div>').join('')
+    +'<div class="muted" style="font-size:11px;margin-top:7px">Kartunya tidak dihapus dari Trello \u2014 '
+    +'yang hilang cuma tampilan dan hitungannya di hub.</div></div>';
+}
+
 function wireAgendaPapanBOD(){
   bpWireBoard(); bpDock();
   document.querySelectorAll('[data-bpsort]').forEach(b=>b.onclick=()=>{ bpSort=b.dataset.bpsort; renderAgenda(); });
+  document.querySelectorAll('[data-pulih]').forEach(b=>b.onclick=()=>bpPulihkan(b.dataset.pulihbr, b.dataset.pulih, b));
   const s=$('#bpSave'), r=$('#bpReset');
   if(s) s.onclick=bpSimpan;
   if(r) r.onclick=()=>{ bpEdits={rows:{},bulan:{},baru:{},ag:{},akt:{}}; bpData=null; bpSig=null; renderAgenda(); };
