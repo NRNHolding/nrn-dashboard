@@ -277,13 +277,47 @@ table thead th{cursor:pointer;user-select:none}.sort-ind{opacity:.55;font-size:.
 /* Blok sentuh sengaja diletakkan paling akhir: beberapa aturan dasar
    (.tab, .btn, .toolbar select, input.pc) muncul belakangan dan akan
    menimpanya kalau blok ini ditaruh di atas. */
+.katchip{display:inline-block;font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:700;
+  padding:2px 7px;border-radius:999px;background:var(--cream2);color:var(--text2);margin-right:7px;vertical-align:middle}
+.katchip.kcl{font-size:8.5px;padding:1px 6px;margin-right:5px}
+.katchip[data-kat="MKT"]{background:#dceadb;color:#2f5131}
+.katchip[data-kat="SLS"]{background:#fde8c8;color:#7f5000}
+.katchip[data-kat="PRD"]{background:#dde6f5;color:#2a4a7a}
+.katchip[data-kat="EVT"]{background:#f1dcf0;color:#6b2a68}
+.katchip[data-kat="OPS"]{background:#e3e3dd;color:#4a4a42}
+.katchip[data-kat="CS"]{background:#d9eceb;color:#245c59}
+.pnotemark{font-size:9.5px;color:var(--text3);margin-left:6px;white-space:nowrap}
+.pnote{width:100%;box-sizing:border-box;font-family:inherit;font-size:13px;line-height:1.55;color:var(--text);
+  padding:9px 11px;border:1px solid var(--cream2);border-radius:9px;background:var(--white);resize:vertical;min-height:84px}
+.lampgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:9px}
+.lamp{position:relative;margin:0;border:1px solid var(--cream2);border-radius:9px;overflow:hidden;background:var(--white)}
+.lamp img{display:block;width:100%;height:96px;object-fit:cover;background:var(--cream)}
+.lamp figcaption{padding:5px 7px;font-size:10px;line-height:1.35;color:var(--text2);word-break:break-word}
+.lamp figcaption b{display:block;font-weight:600}
+.lamp figcaption span{color:var(--text3)}
+.riw{border:1px solid var(--cream2);border-left:4px solid var(--gold);border-radius:10px;background:var(--white);
+  padding:11px 13px;margin:8px 0}
+.riw .rh{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:7px}
+.riw .rh b{font-size:13px}
+.riw .rl{max-height:206px;overflow-y:auto}
+.riw .rr{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;padding:4px 0;border-top:1px solid var(--cream);font-size:11.5px}
+.riw .rr:first-child{border-top:0}
+.riw .rr .w{color:var(--text3);font-size:10.5px;white-space:nowrap;min-width:78px}
+.riw .rr .c{font-weight:600;flex:1;min-width:120px}
+.riw .rr .d{color:var(--text2)}
+.riw .rr .d i{font-style:normal;color:var(--text3);text-decoration:line-through}
+.riw .tab{color:var(--text2);background:var(--white);border:1px solid var(--cream2);border-radius:9px;
+  padding:6px 12px;font-size:12.5px;line-height:1.35;font-family:inherit;font-weight:600;cursor:pointer}
 @media (pointer: coarse){
   .bprow .g1{ grid-template-columns:26px 152px 110px 1fr 30px; }
   .bprow .g1 .grip{ font-size:17px; min-height:40px; }
   .bprow input.pc{ font-size:16px; }
   .toolbar select{ height:44px; font-size:16px; padding:0 11px; }
   .btn{ height:44px; font-size:14px; padding:0 16px; }
-  .toolbar .tab, .bpdraw .tab, .bpchips .tab, .hplist .tab{ padding:11px 16px; }
+  .toolbar .tab, .bpdraw .tab, .bpchips .tab, .hplist .tab, .riw .tab{ padding:11px 16px; }
+  .pnote{ font-size:16px; padding:11px 12px; }
+  .lampgrid{ grid-template-columns:repeat(auto-fill,minmax(118px,1fr)); }
+  .katchip{ font-size:10.5px; padding:3px 8px; }
   .bprow input, .bprow select{ font-size:16px; padding:9px 10px; }
   .bprow .del{ font-size:22px; min-height:40px; min-width:32px; }
   .bprow .cat .ic{ font-size:14px; }
@@ -560,6 +594,7 @@ function renderAgenda(){
       <button class="tab ${agView==='timeline'?'on':''}" id="agTabTl">📊 Timeline</button>
       <button class="tab ${agView==='papan'?'on':''}" id="agTabPapan">🗂 Papan</button>
     </div>
+    ${bpRiwHtml()}
     ${agView==='timeline' ? renderAgendaTimelineBOD(rows) : renderAgendaPapanBOD(rows)}`;
   $('#fBrand').onchange=e=>{f.brand=e.target.value;renderAgenda();};
   $('#fBulan').onchange=e=>{f.bulan=e.target.value;renderAgenda();};
@@ -567,6 +602,7 @@ function renderAgenda(){
   $('#agTabTl').onclick=()=>{agView='timeline';renderAgenda();};
   $('#agTabPapan').onclick=()=>{agView='papan';renderAgenda();};
   if(agView!=='timeline') wireAgendaPapanBOD();
+  bpRiwWire();
   if(agView==='timeline'){
     if($('#agScMonth')) $('#agScMonth').onclick=()=>{ agTlScope='month'; renderAgenda(); };
     if($('#agScYear'))  $('#agScYear').onclick =()=>{ agTlScope='year';  renderAgenda(); };
@@ -672,6 +708,95 @@ function bpBrief(s){
     .replace(/\s{2,}/g,' ').trim();
   return t || String(s||'').trim();
 }
+// ── Kategori dari awalan [MKT]/[SLS] ─────────────────────────
+// Awalan kurung siku dipisah jadi label supaya judul kartu tetap bersih.
+const BP_KAT=[
+  {kode:'MKT', label:'Marketing'},
+  {kode:'SLS', label:'Sales'},
+  {kode:'PRD', label:'Produk'},
+  {kode:'EVT', label:'Event'},
+  {kode:'OPS', label:'Operasional'},
+  {kode:'CS',  label:'Customer'}
+];
+const BP_KAT_PETA=(function(){ const m={}; BP_KAT.forEach(k=>m[k.kode]=k.label); return m; })();
+function bpKat(card){
+  const m=String(card||'').match(/^\s*\[([^\]]+)\]\s*(.*)$/);
+  if(!m) return {kode:'', label:'', bersih:String(card||'').trim()};
+  const kode=m[1].trim().toUpperCase(), sisa=m[2].trim();
+  return {kode:kode, label:BP_KAT_PETA[kode]||kode, bersih:sisa||String(card||'').trim()};
+}
+function bpKatChip(card, kecil){
+  const k=bpKat(card);
+  if(!k.kode) return '';
+  return '<span class="katchip'+(kecil?' kcl':'')+'" data-kat="'+bpEsc(k.kode)+'">'+bpEsc(k.label)+'</span>';
+}
+function bpJudul(card){ return bpKat(card).bersih; }
+
+// ── Nominal rupiah: dikelompokkan sambil diketik ─────────────
+function bpRpWire(inp, sesudah){
+  if(!inp || inp.dataset.rpwire) return;
+  inp.dataset.rpwire='1';
+  inp.setAttribute('inputmode','numeric');
+  inp.oninput=function(){
+    if(/[^0-9. ]/.test(inp.value)){ if(sesudah) sesudah(bpRp(inp.value)); return; }
+    const pos=inp.selectionStart||0, pjg=inp.value.length;
+    const d=inp.value.replace(/[^0-9]/g,'');
+    inp.value=d?Number(d).toLocaleString('id-ID'):'';
+    const t=Math.max(0, pos + (inp.value.length-pjg));
+    try{ inp.setSelectionRange(t,t); }catch(_){}
+    if(sesudah) sesudah(bpRp(inp.value));
+  };
+  inp.onblur=function(){
+    const v=bpRp(inp.value);
+    inp.value=v?fmtNum(v):'';
+    if(sesudah) sesudah(v);
+  };
+}
+function bpRpPendek(n){
+  const v=Math.round(Number(n)||0);
+  if(!v) return '0';
+  if(v>=1e9) return (v/1e9).toFixed(v%1e9?1:0).replace('.',',')+' M';
+  if(v>=1e6) return (v/1e6).toFixed(v%1e6?1:0).replace('.',',')+' jt';
+  if(v>=1e3) return (v/1e3).toFixed(v%1e3?1:0).replace('.',',')+' rb';
+  return String(v);
+}
+function bpRpLengkap(n){
+  const v=Number(n)||0;
+  if(!v) return '';
+  const p=bpRpPendek(v);
+  return fmtRp(v)+(p===fmtNum(v)?'':(' \u00b7 '+p));
+}
+
+// ── Catatan & lampiran per kartu ─────────────────────────────
+function bpNoteOf(brand, card){
+  return ((agendaData&&agendaData.catatanKartu)||[])
+    .find(o=>String(o.brand)===String(brand) && String(o.card)===String(card)) || null;
+}
+function bpLampOf(brand, card){
+  return ((agendaData&&agendaData.lampiran)||[])
+    .filter(o=>String(o.brand)===String(brand) && String(o.card)===String(card));
+}
+function bpNoteHtml(c){
+  const nt=bpNoteOf(c.brand, c.card);
+  const isi=(bpEdits.note && bpEdits.note[c.brand+'||'+c.card] !== undefined)
+    ? bpEdits.note[c.brand+'||'+c.card] : (nt?String(nt.catatan||''):'');
+  return '<div class="bpsec"><div class="l">Catatan agenda</div>'
+    +'<textarea id="bpNote" class="pnote" rows="4" placeholder="Gambaran besar agenda ini \u2014 tujuan, lingkup, siapa terlibat\u2026">'
+    +bpEsc(isi)+'</textarea>'
+    +'<div class="muted" style="font-size:11px;margin-top:5px">'
+    +(nt&&nt.kapan?('Terakhir diubah '+bpEsc(nt.kapan)+(nt.oleh?(' oleh '+bpEsc(nt.oleh)):'')+'. '):'')
+    +'Tersimpan waktu kamu tekan <b>Simpan Semua</b>.</div></div>';
+}
+function bpLampHtml(c){
+  const ls=bpLampOf(c.brand, c.card);
+  if(!ls.length) return '';
+  return '<div class="bpsec"><div class="l">Lampiran \u00b7 '+ls.length+'</div>'
+    +'<div class="lampgrid">'+ls.map(o=>'<figure class="lamp">'
+      +'<a href="'+bpEsc(o.url)+'" target="_blank" rel="noopener"><img src="'+bpEsc(o.url)+'" alt="'+bpEsc(o.nama)+'" loading="lazy"></a>'
+      +'<figcaption><b>'+bpEsc(o.nama)+'</b><span>'+(Number(o.kb)||0)+' KB'+(o.kapan?(' \u00b7 '+bpEsc(o.kapan)):'')+'</span></figcaption>'
+      +'</figure>').join('')+'</div>'
+    +'<div class="muted" style="font-size:11px;margin-top:7px">Diunggah dari hub brand. Dari sini cuma bisa dilihat.</div></div>';
+}
 function bpBuild(rows){
   const map={};
   (rows||[]).forEach(x=>{
@@ -680,7 +805,8 @@ function bpBuild(rows){
     if(!map[key]) map[key]={brand:brand, card:card, bulan:String(x.bulan||''), bulan0:String(x.bulan||''), pic:String(x.pic||''), rows:[]};
     if(!map[key].bulan && x.bulan){ map[key].bulan=String(x.bulan); map[key].bulan0=String(x.bulan); }
     if(!map[key].pic && x.pic) map[key].pic=String(x.pic);
-    const raw=String(x.subtask||''), sub=bpBrief(raw);
+    const raw=String(x.subtask||'');
+    const sub=String(x.namaTampil||'').trim()||bpBrief(raw);
     const dl=String(x.deadlineISO||''), nom=Number(x.nominal)||0, st=statusLabel(x.status);
     const cat=String(x.catatan||'');
     const ur=(x.urutan===null||x.urutan===undefined)?null:Number(x.urutan);
@@ -723,9 +849,10 @@ function bpDirtyN(){
   Object.keys(bpEdits.baru).forEach(k=>ks[k]=1);
   Object.keys(bpEdits.ag).forEach(k=>ks[k]=1);
   Object.keys(bpEdits.akt).forEach(k=>ks[k]=1);
+  Object.keys(bpEdits.note).forEach(k=>ks[k]=1);
   return Object.keys(ks).length;
 }
-let bpEdits={rows:{},bulan:{},baru:{},ag:{},akt:{}};
+let bpEdits={rows:{},bulan:{},baru:{},ag:{},akt:{},note:{}};
 // Perubahan disimpan di luar bpData supaya tidak hilang saat filter berubah
 // (kartu yang tersaring keluar tetap ikut tersimpan).
 function bpSnapshot(){
@@ -832,7 +959,9 @@ function bpTile(c,i){
   const pro=c.rows.reduce((s,r)=>s+(Number(r.nom)||0),0);
   return '<button class="bptile"'+(SENTUH?'':' draggable="true"')+' data-bpt="'+i+'">'
     +'<span class="br">'+bpEsc(c.brand)+'</span>'
-    +'<span class="t">'+bpEsc(c.card)+'</span>'
+    +'<span class="t">'+bpKatChip(c.card, true)+bpEsc(bpJudul(c.card))+'</span>'
+    +(bpNoteOf(c.brand,c.card)?'<span class="pnotemark" title="Ada catatan agenda">\u{1F5D2} catatan</span>':'')
+    +(bpLampOf(c.brand,c.card).length?('<span class="pnotemark">\u{1F5BC} '+bpLampOf(c.brand,c.card).length+'</span>'):'')
     +'<span class="bs">'
     +'<span class="bpb'+(tot&&done===tot?' g':'')+'">'+done+'/'+tot+' selesai</span>'
     +'<span class="bpb">'+fmtRp(pro)+'</span>'
@@ -860,6 +989,58 @@ function bpBoardHtml(){
         ||'<div class="bpempty">'+(SENTUH?'kosong':'seret ke sini')+'</div>')+'</div></section>';
   }).join('');
 }
+// ── Riwayat: apa yang berubah sejak terakhir buka ─────────────
+// Patokannya disimpan di browser ini, jadi sifatnya pengingat pribadi.
+const BRIW_KUNCI='nrnRiwayatDibacaBOD';
+function bpRiwTerakhir(){ try{ return localStorage.getItem(BRIW_KUNCI)||''; }catch(_){ return ''; } }
+function bpRiwTandai(){
+  const r=((agendaData&&agendaData.riwayat)||[]);
+  try{ localStorage.setItem(BRIW_KUNCI, (r.length?String(r[0].waktu||''):'')||new Date().toISOString()); }catch(_){}
+}
+function bpRiwBaru(){
+  const br=(agendaFilt&&agendaFilt.brand)||'(Semua)';
+  const r=((agendaData&&agendaData.riwayat)||[]).filter(x=>br==='(Semua)'||x.brand===br);
+  const batas=bpRiwTerakhir();
+  return batas ? r.filter(x=>String(x.waktu||'')>batas) : r.slice(0,12);
+}
+function bpRiwHtml(){
+  const baru=bpRiwBaru();
+  if(!baru.length) return '';
+  const batas=bpRiwTerakhir();
+  const uangNya=b=>/nominal|aktual|budget/i.test(String(b||''));
+  const baris=baru.map(function(x){
+    const rapi=v=>{ const t=String(v||''); return (uangNya(x.bidang)&&/^[0-9]+$/.test(t))?fmtRp(+t):t; };
+    const dari=rapi(x.dari), jadi=rapi(x.jadi);
+    const nilai=dari?('<i>'+bpEsc(dari)+'</i> \u2192 '+bpEsc(jadi)):bpEsc(jadi);
+    const sub=x.subtask?(' \u00b7 '+bpEsc(bpBrief(x.subtask))):'';
+    return '<div class="rr"><span class="w">'+bpEsc(x.label||'')+'</span>'
+      +'<span class="c">'+bpEsc(x.brand)+' \u00b7 '+bpKatChip(x.card,true)+bpEsc(bpJudul(x.card))+sub+'</span>'
+      +'<span class="d">'+bpEsc(x.bidang||'')+': '+nilai+'</span></div>';
+  }).join('');
+  return '<div class="riw" id="bpRiwBox"><div class="rh">'
+    +'<b>\u{1F514} '+baru.length+' perubahan'+(batas?' sejak terakhir kamu buka':' terbaru')+'</b>'
+    +'<span style="flex:1"></span><button class="tab" id="bpRiwOk">Tandai sudah dibaca</button></div>'
+    +'<div class="rl">'+baris+'</div></div>';
+}
+function bpRiwWire(){
+  const b=$('#bpRiwOk');
+  if(b) b.onclick=()=>{ bpRiwTandai(); const k=$('#bpRiwBox'); if(k) k.remove(); };
+}
+
+// ── Esc menutup laci yang sedang terbuka ─────────────────────
+document.addEventListener('keydown', function(e){
+  if(e.key!=='Escape' && e.key!=='Esc') return;
+  const h=document.getElementById('bpDrawHost');
+  if(!h || !h.innerHTML.trim()) return;
+  const fb=document.getElementById('bpFootB');
+  if(fb && fb.style.display!=='none'){
+    fb.style.display='none';
+    const fa=document.getElementById('bpFootA'); if(fa) fa.style.display='';
+    e.preventDefault(); return;
+  }
+  bpClose(); e.preventDefault();
+});
+
 function renderAgendaPapanBOD(rows){
   // Bangun ulang setiap kali baris hasil filter berubah — kalau tidak, papan
   // tetap menampilkan brand/bulan lama padahal filternya sudah diganti.
@@ -892,7 +1073,7 @@ function bpRowHtml(r,idx){
     +'<div class="g1">'
     +'<button class="grip" type="button" data-grip="'+idx+'" aria-label="Seret untuk mengurutkan" title="Seret untuk mengurutkan">⠿</button>'
     +'<input class="ps" value="'+bpEsc(r.sub)+'" placeholder="Nama subtask"'
-    +(r.baru?'':' readonly title="Nama subtask ikut Trello — yang bisa diubah di sini tanggal, nominal, dan status."')+'>'
+    +(r.baru?'':' title="Judul yang kamu ketik dipakai di hub. Nama aslinya di Trello tetap seperti di bawah."')+'>'
     +'<input class="pd" type="date" value="'+bpEsc(r.dl)+'">'
     +'<input class="pn" value="'+(Number(r.nom)>0?fmtNum(r.nom):'')+'" placeholder="0">'
     +'<select class="pst">'+BP_ST.map(o=>'<option'+(o===r.st?' selected':'')+'>'+o+'</option>').join('')+'</select>'
@@ -908,7 +1089,7 @@ function bpDrawHtml(c){
   const pro=c.rows.reduce((s,r)=>s+(Number(r.nom)||0),0);
   return '<div class="bpscrim" data-bpclose></div><aside class="bpdraw" role="dialog" aria-modal="true">'
     +'<div class="h"><div style="flex:1;min-width:0"><div class="eb">'+bpEsc(c.brand)+' · list '+bpEsc(c.bulan||'tanpa bulan')+'</div>'
-    +'<h3>'+bpEsc(c.card)+'</h3></div><button class="x" data-bpclose>&times;</button></div>'
+    +'<h3>'+bpKatChip(c.card)+bpEsc(bpJudul(c.card))+'</h3></div><button class="x" data-bpclose>&times;</button></div>'
     +'<div class="b">'
     +'<div class="bpsec"><div class="l">Bulan (list Trello)</div>'
     +'<select id="bpMon">'+MONTHS.map(m=>'<option'+(m===c.bulan?' selected':'')+'>'+m+'</option>').join('')+'</select>'
@@ -923,6 +1104,8 @@ function bpDrawHtml(c){
     +'<div id="bpRows">'+c.rows.map((r,i)=>bpRowHtml(r,i)).join('')+'</div>'
     +'<div class="muted" style="font-size:11.5px;margin-top:7px">Total proyeksi kartu ini <b>'+fmtRp(pro)+'</b>. '
     +'Nominal menerima <b>1,5jt</b>, <b>500rb</b>, atau <b>1.500.000</b>.</div></div>'
+    +bpNoteHtml(c)
+    +bpLampHtml(c)
     +bpDetHtml(c)
     +'</div><div class="f" id="bpFootA"><button class="tab del" id="bpHapus">\u{1F5D1} Hapus agenda</button>'
     +'<button class="tab" data-bpclose>Tutup</button><span style="flex:1"></span>'
@@ -1071,10 +1254,10 @@ function bpWireRows(c){
     const gen=el.querySelector('.gen code');
     const upd=()=>{ gen.textContent=bpNama(r.sub,r.dl,r.nom); bpDock(); };
     const nm=el.querySelector('.ps');
-    if(r.baru) nm.oninput=e=>{ r.sub=e.target.value; upd(); };
+    nm.oninput=e=>{ r.sub=e.target.value; upd(); };
     el.querySelector('.pd').onchange=e=>{ r.dl=e.target.value; bpRefreshRows(c); };
     el.querySelector('.pst').onchange=e=>{ r.st=e.target.value; bpDock(); };
-    el.querySelector('.pn').onblur=e=>{ const v=bpRp(e.target.value); r.nom=v; e.target.value=v?fmtNum(v):''; upd(); };
+    bpRpWire(el.querySelector('.pn'), v=>{ r.nom=v; upd(); });
     el.querySelector('.pc').oninput=e=>{ r.cat=e.target.value;
       el.classList.toggle('adacat', !!e.target.value.trim()); bpDock(); };
   });
@@ -1129,6 +1312,8 @@ function bpWireDraw(c){
     bpRefreshRows(c);
   });
   $('#bpDone').onclick=bpClose;
+  const nt=$('#bpNote');
+  if(nt) nt.oninput=e=>{ bpEdits.note[c.brand+'||'+c.card]=e.target.value; bpDock(); };
   $('#bpHapus').onclick=()=>{ $('#bpFootA').style.display='none'; $('#bpFootB').style.display=''; };
   $('#bpBatalHapus').onclick=()=>{ $('#bpFootB').style.display='none'; $('#bpFootA').style.display=''; };
   $('#bpYaHapus').onclick=()=>bpHapus(c);
@@ -1162,8 +1347,12 @@ async function bpSimpan(){
     const sub = (namaAsli !== undefined && String(namaAsli).trim()) ? namaAsli : e.sub;
     if(!String(sub||'').trim()) return;
     const br=bpSplitKey(ck);
+    // Judul hasil ketikan masuk kolom terpisah; kolom Subtask tetap nama mentah
+    // Trello karena dipakai sebagai kunci. Dikosongkan lagi kalau sudah sama.
+    const asli=bpBrief(String(namaAsli||''));
     (perBrand[br[0]]=perBrand[br[0]]||[]).push({card:br[1], subtask:sub, deadline:e.dl,
       nominal:Number(e.nom)||0, status:e.st, catatan:String(e.cat||''),
+      namaTampil:((namaAsli===undefined||e.sub===asli)?'':String(e.sub||'')),
       urutan:(e.ur===null||e.ur===undefined)?undefined:Number(e.ur)});
   };
   Object.keys(bpEdits.rows).forEach(k=>{ const i=k.lastIndexOf('||'); tambah(k.slice(0,i), bpEdits.rows[k], k.slice(i+2)); });
@@ -1189,10 +1378,17 @@ async function bpSimpan(){
     (aktBrand[br[0]]=aktBrand[br[0]]||[]).push({card:br[1], bulan:a.bulan, tahun:a.tahun, aktual:Number(a.aktual)||0});
   });
 
-  const brands=[...new Set(Object.keys(perBrand).concat(Object.keys(agBrand)).concat(Object.keys(aktBrand)))];
+  const noteBrand={};
+  Object.keys(bpEdits.note).forEach(ck=>{
+    const br=bpSplitKey(ck);
+    (noteBrand[br[0]]=noteBrand[br[0]]||[]).push({card:br[1], catatan:String(bpEdits.note[ck]||'')});
+  });
+
+  const brands=[...new Set(Object.keys(perBrand).concat(Object.keys(agBrand))
+    .concat(Object.keys(aktBrand)).concat(Object.keys(noteBrand)))];
   if(!brands.length){ alert('Tidak ada perubahan.'); return; }
   const b=$('#bpSave'); b.disabled=true; b.textContent='Menyimpan…';
-  let ok=0, okAg=0, okAkt=0, gagal=[];
+  let ok=0, okAg=0, okAkt=0, okNote=0, gagal=[];
   for(const br of brands){
     if(perBrand[br]) try{
       const r=await fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({
@@ -1214,12 +1410,20 @@ async function bpSimpan(){
       if(j.success) okAkt+=(j.count||aktBrand[br].length);
       else gagal.push(br+' (aktual): '+(j.error||''));
     }catch(e){ gagal.push(br+' (aktual): gagal terhubung'); }
+    if(noteBrand[br]) try{
+      const r=await fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({
+        type:'editCatatanKartu', brand:br, password:BOD_PW, items:noteBrand[br] })});
+      const j=await r.json();
+      if(j.success) okNote+=(j.count||noteBrand[br].length);
+      else gagal.push(br+' (catatan): '+(j.error||''));
+    }catch(e){ gagal.push(br+' (catatan): gagal terhubung'); }
   }
   const kabar=[]; if(ok) kabar.push(ok+' baris'); if(okAg) kabar.push(okAg+' agency'); if(okAkt) kabar.push(okAkt+' aktual');
+  if(okNote) kabar.push(okNote+' catatan agenda');
   b.textContent='💾 Simpan Semua';
   if(gagal.length) alert('Sebagian gagal —\n'+gagal.join('\n'));
   else alert('✅ '+kabar.join(' + ')+' tersimpan — langsung berlaku.');
-  bpEdits={rows:{},bulan:{},baru:{},ag:{},akt:{}};
+  bpEdits={rows:{},bulan:{},baru:{},ag:{},akt:{},note:{}};
   try{ const rr=await fetch(APPS_SCRIPT_URL+'?action=getAgenda'+PW()); agendaData=await rr.json(); }catch(e){}
   bpData=null; bpSig=null; renderAgenda();
 }
@@ -1273,7 +1477,7 @@ function wireAgendaPapanBOD(){
   document.querySelectorAll('[data-pulih]').forEach(b=>b.onclick=()=>bpPulihkan(b.dataset.pulihbr, b.dataset.pulih, b));
   const s=$('#bpSave'), r=$('#bpReset');
   if(s) s.onclick=bpSimpan;
-  if(r) r.onclick=()=>{ bpEdits={rows:{},bulan:{},baru:{},ag:{},akt:{}}; bpData=null; bpSig=null; renderAgenda(); };
+  if(r) r.onclick=()=>{ bpEdits={rows:{},bulan:{},baru:{},ag:{},akt:{},note:{}}; bpData=null; bpSig=null; renderAgenda(); };
 }
 
 function renderAgendaTimelineBOD(rows){
