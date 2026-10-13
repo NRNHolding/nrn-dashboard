@@ -94,6 +94,7 @@
 .bprow input.pn{text-align:right}
 .bprow .del{background:none;border:0;color:var(--text3);cursor:pointer;font-size:15px;padding:0}
 .bprow .del:hover{color:var(--red)}
+.bprow select.pst.oto{background:#f3f7f2;border-style:dashed;color:var(--text2)}
 .tabbadge{display:inline-block;margin-left:6px;padding:0 6px;border-radius:9px;background:var(--red);color:#fff;font-size:10px;font-weight:700;line-height:16px;vertical-align:middle}
 .notifbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 14px;padding:11px 14px;border:1px solid var(--gold);border-left:4px solid var(--gold);border-radius:10px;background:#fffaf0}
 .notifbar .isi{flex:1;min-width:200px;font-size:13px;color:var(--text)}
@@ -810,7 +811,10 @@ function bpBuild(rows){
     const dl=String(x.deadlineISO||''), nom=Number(x.nominal)||0, st=statusLabel(x.status);
     const cat=String(x.catatan||'');
     const ur=(x.urutan===null||x.urutan===undefined)?null:Number(x.urutan);
-    map[key].rows.push({key:raw,raw:raw,sub:sub,sub0:sub,dl:dl,dl0:dl,nom:nom,nom0:nom,st:st,st0:st,cat:cat,cat0:cat,ur:ur,baru:false});
+    // Status kosong di sheet override = ikut Trello; yang dikunci manual ditandai.
+    const stT=statusLabel(x.statusTrello||''), oto=!x.statusManual;
+    map[key].rows.push({key:raw,raw:raw,sub:sub,sub0:sub,dl:dl,dl0:dl,nom:nom,nom0:nom,
+      st:st,st0:st,stT:(x.statusTrello?stT:''),oto:oto,oto0:oto,cat:cat,cat0:cat,ur:ur,baru:false});
   });
   // Kolom mengikuti bulan tanggal subtask paling awal; kalau tak ada tanggal, baru
   // jatuh ke nama list Trello. Tanpa ini kartu yang digeser bulannya balik ke kolom
@@ -838,7 +842,8 @@ function bpBuild(rows){
     return c;
   });
 }
-const bpRowDirty=r=>!!(r.baru||r.sub!==r.sub0||r.dl!==r.dl0||Number(r.nom)!==Number(r.nom0)||r.st!==r.st0||String(r.cat||'')!==String(r.cat0||'')||r.ur!==r.ur0);
+const bpRowDirty=r=>!!(r.baru||r.sub!==r.sub0||r.dl!==r.dl0||Number(r.nom)!==Number(r.nom0)
+  ||r.st!==r.st0||!!r.oto!==!!r.oto0||String(r.cat||'')!==String(r.cat0||'')||r.ur!==r.ur0);
 const bpAgDirty=c=>JSON.stringify(c.ags||{})!==JSON.stringify(c.ags0||{});
 const bpAktDirty=c=>Number(c.akt||0)!==Number(c.akt0||0);
 const bpCardDirty=c=>!!(c.bulan!==c.bulan0||bpAgDirty(c)||bpAktDirty(c)||c.rows.some(bpRowDirty));
@@ -860,9 +865,9 @@ function bpSnapshot(){
     const ck=c.brand+'||'+c.card, baru=[];
     if(c.bulan!==c.bulan0) bpEdits.bulan[ck]=c.bulan; else delete bpEdits.bulan[ck];
     c.rows.forEach(r=>{
-      if(r.baru){ if(String(r.sub||'').trim()) baru.push({sub:r.sub,dl:r.dl,nom:r.nom,st:r.st,cat:r.cat}); return; }
+      if(r.baru){ if(String(r.sub||'').trim()) baru.push({sub:r.sub,dl:r.dl,nom:r.nom,st:r.st,oto:false,cat:r.cat}); return; }
       const k=ck+'||'+(r.key||r.sub0);
-      if(bpRowDirty(r)) bpEdits.rows[k]={sub:r.sub,dl:r.dl,nom:r.nom,st:r.st,cat:r.cat,ur:r.ur}; else delete bpEdits.rows[k];
+      if(bpRowDirty(r)) bpEdits.rows[k]={sub:r.sub,dl:r.dl,nom:r.nom,st:r.st,oto:!!r.oto,cat:r.cat,ur:r.ur}; else delete bpEdits.rows[k];
     });
     if(baru.length) bpEdits.baru[ck]=baru; else delete bpEdits.baru[ck];
     if(bpAgDirty(c)) bpEdits.ag[ck]={bulan:c.bulan,tahun:c.tahun,ags:JSON.parse(JSON.stringify(c.ags)),ags0:JSON.parse(JSON.stringify(c.ags0||{}))};
@@ -877,7 +882,9 @@ function bpApplyEdits(next){
     if(bpEdits.bulan[ck]) c.bulan=bpEdits.bulan[ck];
     c.rows.forEach(r=>{
       const e=bpEdits.rows[ck+'||'+(r.key||r.sub0)];
-      if(e){ r.sub=e.sub; r.dl=e.dl; r.nom=e.nom; r.st=e.st; r.cat=e.cat||''; if(e.ur!==undefined) r.ur=e.ur; }
+      if(e){ r.sub=e.sub; r.dl=e.dl; r.nom=e.nom; r.st=e.st; r.cat=e.cat||'';
+             if(e.oto!==undefined) r.oto=e.oto;
+             if(e.ur!==undefined) r.ur=e.ur; }
     });
     (bpEdits.baru[ck]||[]).forEach(b=>c.rows.push({key:'',raw:'',sub:b.sub,sub0:'',dl:b.dl,dl0:'',nom:b.nom,nom0:0,st:b.st,st0:'',cat:b.cat||'',cat0:'',ur:null,ur0:null,baru:true}));
     const a=bpEdits.ag[ck];
@@ -1067,6 +1074,16 @@ function bpDock(){
   b.disabled=n===0; c.textContent=n?(n+' kartu diubah'):''; r.style.display=n?'':'none';
 }
 function bpRedraw(){ const b=$('#bpBoard'); if(!b) return; b.innerHTML=bpBoardHtml(); bpDock(); }
+// Status sudah otomatis dari Trello (item dicentang = Done). Yang membekukannya:
+// begitu satu baris diedit, statusnya ikut tertulis ke sheet override dan sejak
+// itu menang terus. Keterangan ini bikin keadaannya kelihatan.
+function bpStKet(r){
+  if(r.baru) return '';
+  if(r.oto) return ' · <b>status otomatis</b> dari Trello';
+  if(r.stT && r.stT!==r.st) return ' · status dikunci <b>'+bpEsc(r.st)+'</b>,'
+    +' padahal Trello bilang <b>'+bpEsc(r.stT)+'</b> — pilih ⟳ Otomatis untuk ikut lagi';
+  return ' · status diatur manual';
+}
 function bpRowHtml(r,idx){
   const s=bpSisa(r.dl), warn=!r.dl||!(Number(r.nom)>0);
   return '<div class="bprow'+(warn?' warn':'')+(String(r.cat||'').trim()?' adacat':'')+'" data-bpr="'+idx+'">'
@@ -1076,14 +1093,17 @@ function bpRowHtml(r,idx){
     +(r.baru?'':' title="Judul yang kamu ketik dipakai di hub. Nama aslinya di Trello tetap seperti di bawah."')+'>'
     +'<input class="pd" type="date" value="'+bpEsc(r.dl)+'">'
     +'<input class="pn" value="'+(Number(r.nom)>0?fmtNum(r.nom):'')+'" placeholder="0">'
-    +'<select class="pst">'+BP_ST.map(o=>'<option'+(o===r.st?' selected':'')+'>'+o+'</option>').join('')+'</select>'
+    +'<select class="pst'+(r.oto?' oto':'')+'">'
+    +(r.stT?('<option value=""'+(r.oto?' selected':'')+'>⟳ Otomatis · '+bpEsc(r.stT)+'</option>'):'')
+    +BP_ST.map(o=>'<option value="'+o+'"'+(!r.oto&&o===r.st?' selected':'')+'>'+o+'</option>').join('')+'</select>'
     +'<button class="del" data-bpdel="'+idx+'" title="Hapus baris">&times;</button></div>'
     +'<div class="cat"><span class="ic">📝</span>'
     +'<input class="pc" value="'+bpEsc(r.cat||'')+'" placeholder="Catatan — kendala, mundur berapa lama, alasannya…"></div>'
     +'<div class="gen">'+(r.baru
        ? ('akan ditulis: <code>'+bpEsc(bpNama(r.sub,r.dl,r.nom))+'</code>')
        : ('dari Trello: <code>'+bpEsc(r.raw||r.sub)+'</code>'))
-    +(s===null?' · tanpa tanggal':(' · '+(s<0?((-s)+' hari lewat'):(s+' hari lagi'))))+'</div></div>';
+    +(s===null?' · tanpa tanggal':(' · '+(s<0?((-s)+' hari lewat'):(s+' hari lagi'))))
+    +bpStKet(r)+'</div></div>';
 }
 function bpDrawHtml(c){
   const pro=c.rows.reduce((s,r)=>s+(Number(r.nom)||0),0);
@@ -1256,7 +1276,11 @@ function bpWireRows(c){
     const nm=el.querySelector('.ps');
     nm.oninput=e=>{ r.sub=e.target.value; upd(); };
     el.querySelector('.pd').onchange=e=>{ r.dl=e.target.value; bpRefreshRows(c); };
-    el.querySelector('.pst').onchange=e=>{ r.st=e.target.value; bpDock(); };
+    el.querySelector('.pst').onchange=e=>{
+      r.oto = e.target.value==='';
+      if(r.oto) r.st = r.stT || r.st; else r.st = e.target.value;
+      bpRefreshRows(c);
+    };
     bpRpWire(el.querySelector('.pn'), v=>{ r.nom=v; upd(); });
     el.querySelector('.pc').oninput=e=>{ r.cat=e.target.value;
       el.classList.toggle('adacat', !!e.target.value.trim()); bpDock(); };
@@ -1351,7 +1375,7 @@ async function bpSimpan(){
     // Trello karena dipakai sebagai kunci. Dikosongkan lagi kalau sudah sama.
     const asli=bpBrief(String(namaAsli||''));
     (perBrand[br[0]]=perBrand[br[0]]||[]).push({card:br[1], subtask:sub, deadline:e.dl,
-      nominal:Number(e.nom)||0, status:e.st, catatan:String(e.cat||''),
+      nominal:Number(e.nom)||0, status:(e.oto?'':e.st), catatan:String(e.cat||''),
       namaTampil:((namaAsli===undefined||e.sub===asli)?'':String(e.sub||'')),
       urutan:(e.ur===null||e.ur===undefined)?undefined:Number(e.ur)});
   };
