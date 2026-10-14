@@ -786,6 +786,14 @@ function hubSiapkanBOD(d){
 // ── Label jenis & PIC ────────────────────────────────────────
 const BP_KAT2=[{kode:'MKT',label:'Marketing'},{kode:'SLS',label:'Sales'},{kode:'PRD',label:'Produk'},
                {kode:'EVT',label:'Event'},{kode:'OPS',label:'Operasional'},{kode:'CS',label:'Customer'}];
+// Usulan budget & lampiran berkunci id kartu; yang terbaca orang tetap judulnya.
+function bpJudulDariId(id){
+  const t=String(id||'');
+  if(!/^K[A-Z0-9]{8}$/.test(t)) return t;
+  const semua=((agendaData&&agendaData.kartu)||[]).concat((agendaData&&agendaData.arsip)||[]);
+  const k=semua.find(x=>String(x.id)===t);
+  return k?k.judul:t;
+}
 function bpChipKode(kode, kecil){
   const k=String(kode||'').trim().toUpperCase();
   if(!k) return '';
@@ -2355,7 +2363,7 @@ function renderFinance(){
   const ovAll = finData.budgetOverrides || [];
   const ovPending = ovAll.filter(o=>o.status==='pending');
   const ovDecided = ovAll.filter(o=>o.status!=='pending').sort((a,b)=>(b.decidedAt||'').localeCompare(a.decidedAt||''));
-  const ovRow = o => `<tr><td><b>${o.brand}</b></td><td>${o.card||'—'}</td><td><b>${o.month||'—'}</b></td>
+  const ovRow = o => `<tr><td><b>${o.brand}</b></td><td>${insEsc(bpJudulDariId(o.card))||'—'}</td><td><b>${o.month||'—'}</b></td>
     <td class="r num">${fmtRp(o.budget)}</td><td class="muted">${o.proposedBy||'—'}<br><span style="font-size:10px">${o.proposedAt||''}</span></td>
     <td><button class="tab bgt-approve" data-brand="${insEsc(o.brand)}" data-card="${insEsc(o.card)}" data-year="${o.year}" style="background:var(--green);color:#fff;border-color:var(--green)">✓ Approve</button>
         <button class="tab bgt-reject" data-brand="${insEsc(o.brand)}" data-card="${insEsc(o.card)}" data-year="${o.year}">✗ Tolak</button></td></tr>`;
@@ -2364,7 +2372,7 @@ function renderFinance(){
     <div class="muted" style="margin:-4px 0 8px;font-size:12px">Usulan Budget dari brand. Yang di-<b>approve</b> langsung jadi Budget agenda itu dan dipakai di laporan.</div>
     <div class="tablewrap"><table><thead><tr><th>Brand</th><th>Card / Agenda</th><th>Bulan</th><th class="r">Usulan Budget</th><th>Diusulkan</th><th>Aksi</th></tr></thead>
       <tbody>${ovPending.length?ovPending.map(ovRow).join(''):'<tr><td colspan="6" class="muted" style="text-align:center;padding:14px">Tidak ada usulan menunggu.</td></tr>'}
-      ${ovDecided.slice(0,8).map(o=>`<tr style="opacity:.6"><td><b>${o.brand}</b></td><td>${o.card||'—'}</td><td>${o.month||'—'}</td><td class="r num">${fmtRp(o.budget)}</td><td class="muted">${o.proposedBy||''}</td><td>${o.status==='approved'?'<span class="pill deal">✓ approved</span>':'<span class="pill cancel">✗ ditolak</span>'} <span class="muted" style="font-size:10px">${o.decidedAt||''}</span></td></tr>`).join('')}</tbody></table></div>` : '';
+      ${ovDecided.slice(0,8).map(o=>`<tr style="opacity:.6"><td><b>${o.brand}</b></td><td>${insEsc(bpJudulDariId(o.card))||'—'}</td><td>${o.month||'—'}</td><td class="r num">${fmtRp(o.budget)}</td><td class="muted">${o.proposedBy||''}</td><td>${o.status==='approved'?'<span class="pill deal">✓ approved</span>':'<span class="pill cancel">✗ ditolak</span>'} <span class="muted" style="font-size:10px">${o.decidedAt||''}</span></td></tr>`).join('')}</tbody></table></div>` : '';
 
   $('#content').innerHTML = `
     <div class="toolbar">
